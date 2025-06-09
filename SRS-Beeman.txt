@@ -1,0 +1,194 @@
+📄 Software Requirements Specification (SRS)
+🐝 BeeMan – BeeBox Pollination Management App
+Version: 1.0
+Date: June 2025
+
+1. Introduction
+1.1 Purpose
+BeeMan is a cross-platform application (Android, iOS, Web) designed to streamline the process of pollination through managed bee box rentals. The platform helps farmers book available bee boxes, manage schedules, and receive updates via WhatsApp. It also includes an admin portal for managing grid layout and bookings.
+
+1.2 Scope
+BeeMan allows:
+
+Farmers to register, select boxes visually, request pollination, and pay.
+
+Admins to manage beebox layout and bookings.
+
+Integration with payment and messaging APIs.
+
+1.3 Audience
+Farmers (end-users)
+
+BeeBox service providers (admins)
+
+Developers and stakeholders
+
+2. Overall Description
+2.1 Product Functions
+Authentication: Google login, language selection, profile setup
+
+Dashboard: BeeBox availability visualized like a ticket grid
+
+Booking: Form-based input with crop info, dates, cost calculation
+
+Payment: Razorpay integration
+
+Notifications: WhatsApp messages on booking & schedule
+
+Admin Panel: View/edit grid layout, see bookings, manage availability
+
+2.2 User Types
+Role	Capabilities
+Farmer	Register, book bee boxes, pay, receive alerts
+Admin	Manage bee box grid, view bookings, trigger alerts
+
+3. Functional Requirements
+3.1 User Authentication
+FR-1.1: Login with Google account
+
+FR-1.2: Language selection (Marathi, Hindi, English)
+
+FR-1.3: Profile setup (Name, Email, Phone, Address, Land Size)
+
+3.2 BeeBox Dashboard
+FR-2.1: Fetch layout from Firestore
+
+FR-2.2: Display boxes in grid with seating-style visualization
+
+FR-2.3: Allow multi-selection of available boxes
+
+FR-2.4: Red = booked, Green = available, Blue = selected
+
+3.3 Booking Form
+FR-3.1: Show form with crop, start/end date, pre-filled address
+
+FR-3.2: Auto-calculate total rent, deposit, grand total
+
+FR-3.3: Submit booking to Firestore
+
+3.4 Payment Module
+FR-4.1: Razorpay integration with amount passed from booking
+
+FR-4.2: On success, mark boxes as booked and confirm booking
+
+FR-4.3: On failure, show retry message
+
+3.5 WhatsApp Confirmation
+FR-5.1: Send WhatsApp message after successful booking
+
+FR-5.2: Message includes crop, dates, amount, boxes, and support info
+
+FR-5.3: Use custom API for WhatsApp integration
+
+3.6 Periodic Alert System
+FR-6.1: Cloud Function runs daily
+
+FR-6.2: Sends messages on booking start date, 2nd day, and 3 days before end
+
+FR-6.3: Uses booking and user collections to compute alert triggers
+
+3.7 Admin Panel
+FR-7.1: Admin login via email/password
+
+FR-7.2: View and edit bee box layout (toggle status)
+
+FR-7.3: Add new rows and columns
+
+FR-7.4: Reset all layout data
+
+FR-7.5: View all bookings with user details
+
+FR-7.6: View box count, crop, total paid, date range
+
+4. Non-Functional Requirements
+4.1 Performance
+Must support concurrent real-time updates via Firestore
+
+Admin panel responsive on web
+
+4.2 Scalability
+Backend logic supports 1000+ bookings and layout updates
+
+WhatsApp integration must queue and retry failed messages
+
+4.3 Reliability
+Payment success triggers are atomic (Firestore + WhatsApp)
+
+Admin updates are batched for consistency
+
+4.4 Security
+Admin access restricted via Firebase Auth + Firestore Rules
+
+Payments secured via Razorpay SDK
+
+No public registration for admins
+
+4.5 Technology Stack
+Layer	Tech
+Frontend	Flutter (Web, Android, iOS)
+Backend	Firebase Firestore + Functions
+Auth	Firebase Auth (Email + Google)
+Payment	Razorpay SDK
+Messaging API	Custom WhatsApp API
+Hosting	Firebase Hosting (for web)
+
+5. Data Models
+5.1 User
+json
+Copy
+Edit
+{
+  "uid": "string",
+  "name": "string",
+  "phone": "string",
+  "email": "string",
+  "address": "string",
+  "landSize": "string",
+  "language": "string"
+}
+5.2 BeeBox
+json
+Copy
+Edit
+{
+  "id": "A1",
+  "row": "A",
+  "col": 1,
+  "isBooked": false
+}
+5.3 Booking
+json
+Copy
+Edit
+{
+  "uid": "user123",
+  "crop": "Pomegranate",
+  "address": "Satara",
+  "startDate": "2025-06-10",
+  "endDate": "2025-06-25",
+  "totalDays": 15,
+  "boxIds": ["A1", "A2"],
+  "totalRent": 5000,
+  "totalDeposit": 3000,
+  "grandTotal": 8000
+}
+6. Future Enhancements
+Feature	Priority
+CSV Booking Export	High
+OTP-based farmer login	Medium
+Admin audit logs	Medium
+Geo-location integration	Low
+Farmer app in offline mode	Low
+
+7. Appendix
+Developer Notes:
+
+Firebase CLI must be set up to deploy Cloud Functions.
+
+WhatsApp API keys to be secured via Firebase Config.
+
+Use role-based checks for admin in Firestore rules.
+
+
+
+booking screen should show beeboxes like movie ticket selection on bookmyshow

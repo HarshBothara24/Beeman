@@ -1,0 +1,229 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../dashboard/presentation/screens/dashboard_screen.dart';
+import '../providers/auth_provider.dart';
+import '../widgets/custom_button.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final selectedLanguage = authProvider.selectedLanguage;
+    
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 48),
+              // Logo and app name
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: const BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.emoji_nature, // Bee icon
+                        size: 80,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      AppConstants.appName,
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'BeeBox Pollination Management',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              // Welcome text
+              Text(
+                _getWelcomeText(selectedLanguage),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _getSubtitleText(selectedLanguage),
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: AppTheme.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 48),
+              // Google Sign In Button
+              CustomButton(
+                text: _getGoogleSignInText(selectedLanguage),
+                icon: Image.asset(
+                  'assets/icons/google_icon.png',
+                  width: 24,
+                  height: 24,
+                ),
+                onPressed: _isLoading ? null : () => _signInWithGoogle(context),
+                isLoading: _isLoading,
+                backgroundColor: Colors.white,
+                textColor: AppTheme.textPrimary,
+                borderColor: AppTheme.border,
+              ),
+              const SizedBox(height: 16),
+              // Phone Sign In Button
+              CustomButton(
+                text: _getPhoneSignInText(selectedLanguage),
+                icon: const Icon(
+                  Icons.phone,
+                  color: Colors.white,
+                ),
+                onPressed: _isLoading ? null : () => _signInWithPhone(context),
+                isLoading: false,
+                backgroundColor: AppTheme.primaryColor,
+                textColor: Colors.white,
+              ),
+              const SizedBox(height: 24),
+              // Terms and conditions
+              Text(
+                _getTermsText(selectedLanguage),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _signInWithGoogle(BuildContext context) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.signInWithGoogle();
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (success && context.mounted) {
+      // Navigate to dashboard
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      );
+    } else if (context.mounted) {
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _signInWithPhone(BuildContext context) {
+    // TODO: Implement phone sign in
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Phone sign in will be implemented soon!'),
+      ),
+    );
+  }
+
+  // Multilingual text getters
+  String _getWelcomeText(String languageCode) {
+    switch (languageCode) {
+      case AppConstants.hindi:
+        return 'बीमैन में आपका स्वागत है';
+      case AppConstants.marathi:
+        return 'बीमॅन मध्ये आपले स्वागत आहे';
+      default:
+        return 'Welcome to BeeMan';
+    }
+  }
+
+  String _getSubtitleText(String languageCode) {
+    switch (languageCode) {
+      case AppConstants.hindi:
+        return 'परागण के लिए मधुमक्खी के बक्से किराए पर लें';
+      case AppConstants.marathi:
+        return 'परागीभवनासाठी मधमाशांचे बॉक्स भाड्याने घ्या';
+      default:
+        return 'Rent bee boxes for pollination';
+    }
+  }
+
+  String _getGoogleSignInText(String languageCode) {
+    switch (languageCode) {
+      case AppConstants.hindi:
+        return 'Google के साथ जारी रखें';
+      case AppConstants.marathi:
+        return 'Google सह सुरू ठेवा';
+      default:
+        return 'Continue with Google';
+    }
+  }
+
+  String _getPhoneSignInText(String languageCode) {
+    switch (languageCode) {
+      case AppConstants.hindi:
+        return 'फोन नंबर के साथ जारी रखें';
+      case AppConstants.marathi:
+        return 'फोन नंबरसह सुरू ठेवा';
+      default:
+        return 'Continue with Phone';
+    }
+  }
+
+  String _getTermsText(String languageCode) {
+    switch (languageCode) {
+      case AppConstants.hindi:
+        return 'जारी रखकर, आप हमारी सेवा की शर्तों और गोपनीयता नीति से सहमत हैं';
+      case AppConstants.marathi:
+        return 'सुरू ठेवून, आपण आमच्या सेवा अटी आणि गोपनीयता धोरणाशी सहमत आहात';
+      default:
+        return 'By continuing, you agree to our Terms of Service and Privacy Policy';
+    }
+  }
+}
