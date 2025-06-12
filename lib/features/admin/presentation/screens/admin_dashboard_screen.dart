@@ -5,6 +5,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
+import '../../../booking/presentation/providers/booking_provider.dart';
 import '../widgets/admin_drawer.dart';
 import '../widgets/dashboard_card.dart';
 import 'bee_box_management_screen.dart';
@@ -18,6 +19,8 @@ class AdminDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    final bookingProvider = Provider.of<BookingProvider>(context);
+    final bookings = bookingProvider.bookings;
     final user = authProvider.user;
 
     return Scaffold(
@@ -100,6 +103,41 @@ class AdminDashboardScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
+                // Stats cards
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  children: [
+                    _buildStatCard(
+                      'Total Bookings',
+                      bookings.length.toString(),
+                      Icons.calendar_today,
+                      Colors.blue,
+                    ),
+                    _buildStatCard(
+                      'Active Bookings',
+                      bookings.where((b) => b.status == 'active').length.toString(),
+                      Icons.hive,
+                      Colors.green,
+                    ),
+                    _buildStatCard(
+                      'Pending Bookings',
+                      bookings.where((b) => b.status == 'pending').length.toString(),
+                      Icons.pending,
+                      Colors.orange,
+                    ),
+                    _buildStatCard(
+                      'Total Revenue',
+                      '₹${bookings.fold(0.0, (sum, b) => sum + b.totalAmount)}',
+                      Icons.money,
+                      Colors.purple,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
                 // Dashboard title
                 const Text(
                   'Dashboard',
@@ -153,104 +191,172 @@ class AdminDashboardScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 24),
-                // Recent activity title
+                // Recent bookings
                 const Text(
-                  'Recent Activity',
+                  'Recent Bookings',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Recent activity list
-                _buildRecentActivityList(),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: bookings.length,
+                  itemBuilder: (context, index) {
+                    final booking = bookings[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        title: Text('Booking #${booking.id.substring(0, 8)}'),
+                        subtitle: Text(
+                          '${booking.crop} - ${booking.boxNumbers.length} boxes',
+                        ),
+                        trailing: _buildStatusChip(booking.status),
+                        onTap: () => _showBookingDetails(context, booking),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
           ),
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // TODO: Add box management screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Box management coming soon!')),
+          );
+        },
+        backgroundColor: AppTheme.primaryColor,
+        child: const Icon(Icons.add),
+      ),
     );
   }
 
-  Widget _buildRecentActivityList() {
-    // This would typically be populated from a database
-    // For now, we'll use dummy data
-    final activities = [
-      {
-        'type': 'booking',
-        'title': 'New Booking',
-        'description': 'Rahul Sharma booked 5 bee boxes',
-        'time': '2 hours ago',
-        'icon': Icons.calendar_today,
-        'color': Colors.green,
-      },
-      {
-        'type': 'payment',
-        'title': 'Payment Received',
-        'description': '₹5,000 received from Amit Patel',
-        'time': '5 hours ago',
-        'icon': Icons.payment,
-        'color': Colors.purple,
-      },
-      {
-        'type': 'user',
-        'title': 'New User',
-        'description': 'Priya Desai registered as a new user',
-        'time': '1 day ago',
-        'icon': Icons.person_add,
-        'color': Colors.blue,
-      },
-      {
-        'type': 'box',
-        'title': 'Bee Box Added',
-        'description': '10 new bee boxes added to inventory',
-        'time': '2 days ago',
-        'icon': Icons.add_box,
-        'color': Colors.amber,
-      },
-    ];
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.5)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 32),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              color: color.withOpacity(0.8),
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: activities.length,
-      itemBuilder: (context, index) {
-        final activity = activities[index];
-        return Card(
-          elevation: 1,
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+  Widget _buildStatusChip(String status) {
+    Color color;
+    switch (status.toLowerCase()) {
+      case 'active':
+        color = Colors.green;
+        break;
+      case 'pending':
+        color = Colors.orange;
+        break;
+      case 'completed':
+        color = Colors.blue;
+        break;
+      case 'cancelled':
+        color = Colors.red;
+        break;
+      default:
+        color = Colors.grey;
+    }
+
+    return Chip(
+      label: Text(
+        status.toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+        ),
+      ),
+      backgroundColor: color,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+    );
+  }
+
+  void _showBookingDetails(BuildContext context, dynamic booking) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Booking #${booking.id.substring(0, 8)}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailRow('Crop', booking.crop),
+            _buildDetailRow('Location', booking.location),
+            _buildDetailRow('Boxes', booking.boxNumbers.length.toString()),
+            _buildDetailRow('Status', booking.status.toUpperCase()),
+            _buildDetailRow('Total Amount', '₹${booking.totalAmount}'),
+            _buildDetailRow('Deposit Paid', '₹${booking.depositAmount}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
           ),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: (activity['color'] as Color).withOpacity(0.2),
-              child: Icon(
-                activity['icon'] as IconData,
-                color: activity['color'] as Color,
-              ),
-            ),
-            title: Text(
-              activity['title'] as String,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Text(activity['description'] as String),
-            trailing: Text(
-              activity['time'] as String,
-              style: const TextStyle(
-                color: AppTheme.textSecondary,
-                fontSize: 12,
-              ),
-            ),
-            onTap: () {
-              // Navigate to the relevant screen based on activity type
+          TextButton(
+            onPressed: () {
+              // TODO: Add status update functionality
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Status update coming soon!')),
+              );
             },
+            child: const Text('Update Status'),
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '$label:',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          Text(value),
+        ],
+      ),
     );
   }
 

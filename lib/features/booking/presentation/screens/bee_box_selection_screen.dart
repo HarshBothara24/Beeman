@@ -39,12 +39,12 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
           // Grid of bee boxes
           Expanded(
             child: GridView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // Reduced padding
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
+                crossAxisCount: 8, // Increased number of columns
                 childAspectRatio: 1,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
+                crossAxisSpacing: 8, // Reduced spacing
+                mainAxisSpacing: 8, // Reduced spacing
               ),
               itemCount: 20, // Total number of boxes
               itemBuilder: (context, index) {
@@ -169,12 +169,13 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6), // Smaller border radius
         ),
         child: Center(
           child: Text(
-            'Box ${index + 1}',
+            '${index + 1}', // Simplified text
             style: TextStyle(
+              fontSize: 12, // Smaller font size
               fontWeight: FontWeight.bold,
               color: isAvailable ? Colors.white : Colors.black54,
             ),
