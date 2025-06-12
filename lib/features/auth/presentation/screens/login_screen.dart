@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../admin/presentation/screens/admin_login_screen.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/custom_button.dart';
 
@@ -127,6 +128,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
+              // Admin login button
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminLoginScreen(),
+                    ),
+                  );
+                },
+                child: Text(
+                  _getAdminLoginText(selectedLanguage),
+                  style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -224,6 +242,17 @@ class _LoginScreenState extends State<LoginScreen> {
         return 'सुरू ठेवून, आपण आमच्या सेवा अटी आणि गोपनीयता धोरणाशी सहमत आहात';
       default:
         return 'By continuing, you agree to our Terms of Service and Privacy Policy';
+    }
+  }
+
+  String _getAdminLoginText(String languageCode) {
+    switch (languageCode) {
+      case AppConstants.hindi:
+        return 'एडमिन लॉगिन';
+      case AppConstants.marathi:
+        return 'अॅडमिन लॉगिन';
+      default:
+        return 'Admin Login';
     }
   }
 }
