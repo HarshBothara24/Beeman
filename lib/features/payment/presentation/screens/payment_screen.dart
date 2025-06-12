@@ -6,6 +6,8 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../booking/presentation/providers/booking_provider.dart';
+import '../../../booking/domain/models/booking_model.dart';
 import '../widgets/payment_method_card.dart';
 
 class PaymentScreen extends StatefulWidget {
@@ -234,6 +236,30 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     // Show success dialog
     if (mounted) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+
+      // Create a booking model
+      final booking = BookingModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(), // Temporary ID
+        userId: authProvider.user?.uid ?? '',
+        boxNumbers: Set<int>.from(widget.bookingDetails['selectedBoxes']),
+        crop: widget.bookingDetails['crop'],
+        location: widget.bookingDetails['location'],
+        phone: widget.bookingDetails['phone'],
+        startDate: widget.bookingDetails['startDate'],
+        endDate: widget.bookingDetails['endDate'],
+        numberOfBoxes: widget.bookingDetails['numberOfBoxes'],
+        notes: widget.bookingDetails['notes'],
+        totalAmount: widget.bookingDetails['totalRent'].toDouble(),
+        depositAmount: widget.bookingDetails['depositAmount'].toDouble(),
+        status: 'pending',
+        createdAt: DateTime.now(),
+      );
+
+      // Add booking to provider
+      bookingProvider.addBooking(booking);
+
       showDialog(
         context: context,
         barrierDismissible: false,

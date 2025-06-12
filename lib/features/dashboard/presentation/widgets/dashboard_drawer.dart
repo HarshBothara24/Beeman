@@ -5,7 +5,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
-import '../../../booking/presentation/screens/booking_screen.dart';
+import '../../../booking/presentation/screens/bee_box_selection_screen.dart';
 import '../../../booking/presentation/screens/my_bookings_screen.dart';
 import '../../../payment/presentation/screens/payment_history_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
@@ -76,10 +76,14 @@ class DashboardDrawer extends StatelessWidget {
           // Book Bee Boxes
           ListTile(
             leading: const Icon(Icons.calendar_today),
-            title: Text(_getBookingText(selectedLanguage)),
+            title: const Text('Book Now'),
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const BookingScreen()),
+              Navigator.pop(context); // Close drawer
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const BeeBoxSelectionScreen(),
+                ),
               );
             },
           ),
@@ -127,12 +131,10 @@ class DashboardDrawer extends StatelessWidget {
             leading: const Icon(Icons.settings),
             title: Text(_getSettingsText(selectedLanguage)),
             onTap: () {
-              // TODO: Implement SettingsScreen
-              // Navigator.of(context).push(
-              //   MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              // );
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Coming soon!'))
+              Navigator.pop(context); // Close drawer first
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
               );
             },
           ),

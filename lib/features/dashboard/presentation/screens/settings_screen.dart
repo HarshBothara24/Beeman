@@ -1,154 +1,111 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool _notificationsEnabled = true;
-  bool _locationEnabled = true;
-  String _selectedLanguage = 'English';
-
-  @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final selectedLanguage = authProvider.selectedLanguage;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(_getSettingsText(selectedLanguage)),
         backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: ListView(
+        children: [
+          // Language Settings
+          ListTile(
+            leading: const Icon(Icons.language),
+            title: Text(_getLanguageText(selectedLanguage)),
+            subtitle: Text(_getCurrentLanguage(selectedLanguage)),
+            onTap: () => _showLanguageDialog(context, selectedLanguage),
+          ),
+          const Divider(),
+          // Add more settings here
+        ],
+      ),
+    );
+  }
+
+  void _showLanguageDialog(BuildContext context, String currentLanguage) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_getSelectLanguageText(currentLanguage)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Account Settings Section
-            Text(
-              'Account Settings',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              title: const Text('Edit Profile'),
-              leading: const Icon(Icons.person_outline),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // Navigate to edit profile screen
-              },
-            ),
-            ListTile(
-              title: const Text('Change Password'),
-              leading: const Icon(Icons.lock_outline),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // Navigate to change password screen
-              },
-            ),
-            const Divider(),
-            
-            // Notification Settings
-            const SizedBox(height: 16),
-            Text(
-              'Notification Settings',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: const Text('Enable Notifications'),
-              value: _notificationsEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _notificationsEnabled = value;
-                });
-              },
-            ),
-            SwitchListTile(
-              title: const Text('Enable Location Services'),
-              value: _locationEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _locationEnabled = value;
-                });
-              },
-            ),
-            const Divider(),
-            
-            // Language Settings
-            const SizedBox(height: 16),
-            Text(
-              'Language Settings',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(
-                labelText: 'Select Language',
-                border: OutlineInputBorder(),
-              ),
-              value: _selectedLanguage,
-              items: const [
-                DropdownMenuItem(value: 'English', child: Text('English')),
-                DropdownMenuItem(value: 'Hindi', child: Text('Hindi')),
-                DropdownMenuItem(value: 'Marathi', child: Text('Marathi')),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedLanguage = value!;
-                });
-              },
-            ),
-            const Divider(),
-            
-            // About Section
-            const SizedBox(height: 16),
-            Text(
-              'About',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              title: const Text('Terms of Service'),
-              leading: const Icon(Icons.description_outlined),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // Navigate to terms of service
-              },
-            ),
-            ListTile(
-              title: const Text('Privacy Policy'),
-              leading: const Icon(Icons.privacy_tip_outlined),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                // Navigate to privacy policy
-              },
-            ),
-            ListTile(
-              title: const Text('App Version'),
-              leading: const Icon(Icons.info_outline),
-              trailing: const Text('1.0.0'),
-            ),
+            _buildLanguageOption(context, 'English', AppConstants.english),
+            _buildLanguageOption(context, 'हिंदी', AppConstants.hindi),
+            _buildLanguageOption(context, 'मराठी', AppConstants.marathi),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildLanguageOption(BuildContext context, String title, String code) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final isSelected = authProvider.selectedLanguage == code;
+
+    return ListTile(
+      title: Text(title),
+      trailing: isSelected ? const Icon(Icons.check, color: AppTheme.primaryColor) : null,
+      onTap: () {
+        authProvider.setLanguage(code);
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  String _getSettingsText(String languageCode) {
+    switch (languageCode) {
+      case AppConstants.hindi:
+        return 'सेटिंग्स';
+      case AppConstants.marathi:
+        return 'सेटिंग्ज';
+      default:
+        return 'Settings';
+    }
+  }
+
+  String _getLanguageText(String languageCode) {
+    switch (languageCode) {
+      case AppConstants.hindi:
+        return 'भाषा';
+      case AppConstants.marathi:
+        return 'भाषा';
+      default:
+        return 'Language';
+    }
+  }
+
+  String _getCurrentLanguage(String languageCode) {
+    switch (languageCode) {
+      case AppConstants.hindi:
+        return 'हिंदी';
+      case AppConstants.marathi:
+        return 'मराठी';
+      default:
+        return 'English';
+    }
+  }
+
+  String _getSelectLanguageText(String languageCode) {
+    switch (languageCode) {
+      case AppConstants.hindi:
+        return 'भाषा चुनें';
+      case AppConstants.marathi:
+        return 'भाषा निवडा';
+      default:
+        return 'Select Language';
+    }
   }
 }

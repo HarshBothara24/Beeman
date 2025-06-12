@@ -73,4 +73,5 @@ class DefaultFirebaseOptions {
     iosClientId: '251901305410-rk0lsnmjfk41nv1352ckjr6ulecfu2kv.apps.googleusercontent.com',
     iosBundleId: 'com.beeman.beeman',
   );
+
 }

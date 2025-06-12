@@ -5,7 +5,8 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
-import '../../../booking/presentation/screens/booking_screen.dart';
+import '../../../booking/presentation/screens/bee_box_selection_screen.dart';
+import '../../../booking/presentation/screens/my_bookings_screen.dart';
 import '../widgets/dashboard_drawer.dart';
 import '../widgets/feature_card.dart';
 
@@ -120,7 +121,7 @@ class DashboardScreen extends StatelessWidget {
               ),
               // Features section
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -133,53 +134,63 @@ class DashboardScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Feature cards grid
-                    GridView.count(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        // Book Bee Boxes
-                        FeatureCard(
-                          title: _getBookingText(selectedLanguage),
-                          subtitle: _getBookingSubtitleText(selectedLanguage),
-                          icon: Icons.calendar_today,
-                          color: Colors.amber,
-                          onTap: () => _navigateToBooking(context),
-                        ),
-                        // My Bookings
-                        FeatureCard(
-                          title: _getMyBookingsText(selectedLanguage),
-                          subtitle: _getMyBookingsSubtitleText(selectedLanguage),
-                          icon: Icons.history,
-                          color: Colors.green,
-                          onTap: () {
-                            // Navigate to my bookings screen
-                          },
-                        ),
-                        // Payments
-                        FeatureCard(
-                          title: _getPaymentsText(selectedLanguage),
-                          subtitle: _getPaymentsSubtitleText(selectedLanguage),
-                          icon: Icons.payment,
-                          color: Colors.purple,
-                          onTap: () {
-                            // Navigate to payments screen
-                          },
-                        ),
-                        // Support
-                        FeatureCard(
-                          title: _getSupportText(selectedLanguage),
-                          subtitle: _getSupportSubtitleText(selectedLanguage),
-                          icon: Icons.support_agent,
-                          color: Colors.blue,
-                          onTap: () {
-                            // Navigate to support screen
-                          },
-                        ),
-                      ],
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final crossAxisCount = constraints.maxWidth > 600 ? 3 : 2;
+                        return GridView.count(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          childAspectRatio: 1.2,
+                          children: [
+                            // Book Bee Boxes
+                            FeatureCard(
+                              title: _getBookingText(selectedLanguage),
+                              subtitle: _getBookingSubtitleText(selectedLanguage),
+                              icon: Icons.calendar_today,
+                              color: Colors.amber,
+                              onTap: () => _navigateToBooking(context),
+                            ),
+                            // My Bookings
+                            FeatureCard(
+                              title: _getMyBookingsText(selectedLanguage),
+                              subtitle: _getMyBookingsSubtitleText(selectedLanguage),
+                              icon: Icons.history,
+                              color: Colors.green,
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const MyBookingsScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                            // Payments
+                            FeatureCard(
+                              title: _getPaymentsText(selectedLanguage),
+                              subtitle: _getPaymentsSubtitleText(selectedLanguage),
+                              icon: Icons.payment,
+                              color: Colors.purple,
+                              onTap: () {
+                                // Navigate to payments screen
+                              },
+                            ),
+                            // Support
+                            FeatureCard(
+                              title: _getSupportText(selectedLanguage),
+                              subtitle: _getSupportSubtitleText(selectedLanguage),
+                              icon: Icons.support_agent,
+                              color: Colors.blue,
+                              onTap: () {
+                                // Navigate to support screen
+                              },
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -264,8 +275,11 @@ class DashboardScreen extends StatelessWidget {
   }
 
   void _navigateToBooking(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const BookingScreen()),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const BeeBoxSelectionScreen(),
+      ),
     );
   }
 

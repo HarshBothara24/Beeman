@@ -1,158 +1,152 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 
-class LanguageSelectionScreen extends StatelessWidget {
+class LanguageSelectionScreen extends StatefulWidget {
   const LanguageSelectionScreen({super.key});
 
   @override
+  State<LanguageSelectionScreen> createState() => _LanguageSelectionScreenState();
+}
+
+class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
+  String _selectedLanguage = AppConstants.english;
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 48),
-              // Logo and app name
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.primaryColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.emoji_nature, // Bee icon
-                        size: 60,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      AppConstants.appName,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
-                  ],
+    return MaterialApp(
+      home: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                const Spacer(),
+                const Icon(
+                  Icons.translate,
+                  size: 80,
+                  color: AppTheme.primaryColor,
                 ),
-              ),
-              const SizedBox(height: 64),
-              // Language selection title
-              const Text(
-                'Select Your Language',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              // Language options
-              _buildLanguageOption(
-                context,
-                'English',
-                AppConstants.english,
-                Icons.language,
-              ),
-              const SizedBox(height: 16),
-              _buildLanguageOption(
-                context,
-                'हिंदी (Hindi)',
-                AppConstants.hindi,
-                Icons.language,
-              ),
-              const SizedBox(height: 16),
-              _buildLanguageOption(
-                context,
-                'मराठी (Marathi)',
-                AppConstants.marathi,
-                Icons.language,
-              ),
-              const Spacer(),
-              // Admin login button
-              TextButton(
-                onPressed: () {
-                  _navigateToAdminLogin(context);
-                },
-                child: const Text(
-                  'Admin Login',
+                const SizedBox(height: 32),
+                const Text(
+                  'Select Language',
                   style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 16,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                const Text(
+                  'भाषा चुनें / भाषा निवडा',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 48),
+                _buildLanguageButton(
+                  'English',
+                  AppConstants.english,
+                  'English',
+                ),
+                const SizedBox(height: 16),
+                _buildLanguageButton(
+                  'हिंदी',
+                  AppConstants.hindi,
+                  'Hindi',
+                ),
+                const SizedBox(height: 16),
+                _buildLanguageButton(
+                  'मराठी',
+                  AppConstants.marathi,
+                  'Marathi',
+                ),
+                const Spacer(),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _continueWithLanguage,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Continue',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildLanguageOption(
-    BuildContext context,
-    String languageName,
-    String languageCode,
-    IconData icon,
-  ) {
+  Widget _buildLanguageButton(String title, String code, String subtitle) {
+    final isSelected = _selectedLanguage == code;
     return InkWell(
-      onTap: () => _selectLanguage(context, languageCode),
+      onTap: () => setState(() => _selectedLanguage = code),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          border: Border.all(color: AppTheme.border),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryColor : AppTheme.border,
+            width: isSelected ? 2 : 1,
+          ),
           borderRadius: BorderRadius.circular(12),
+          color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : null,
         ),
         child: Row(
           children: [
-            Icon(icon, color: AppTheme.primaryColor),
-            const SizedBox(width: 16),
-            Text(
-              languageName,
-              style: const TextStyle(
-                fontSize: 18,
-                color: AppTheme.textPrimary,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
             ),
             const Spacer(),
-            const Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: AppTheme.textSecondary,
-            ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                color: AppTheme.primaryColor,
+              ),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _selectLanguage(BuildContext context, String languageCode) async {
+  void _continueWithLanguage() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.setLanguage(languageCode);
+    authProvider.setLanguage(_selectedLanguage);
     
-    if (context.mounted) {
-      // Navigate to login screen
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    }
-  }
-
-  void _navigateToAdminLogin(BuildContext context) {
-    Navigator.of(context).pushNamed('/admin/login');
+    // Navigate to login screen after language selection
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
   }
 }

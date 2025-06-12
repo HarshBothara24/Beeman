@@ -27,6 +27,7 @@ class AuthProvider extends ChangeNotifier {
   String _errorMessage = '';
   String _selectedLanguage = AppConstants.english;
   bool _isAdmin = false;
+  bool _hasSelectedLanguage = false;
   
   // Getters
   User? get user => _user;
@@ -36,6 +37,7 @@ class AuthProvider extends ChangeNotifier {
   String get languageCode => _selectedLanguage; // Added for compatibility
   bool get isAdmin => _isAdmin;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
+  bool get hasSelectedLanguage => _hasSelectedLanguage;
   
   AuthProvider() {
     // Check if user is already logged in
@@ -161,10 +163,12 @@ class AuthProvider extends ChangeNotifier {
   // Set language preference
   Future<void> setLanguage(String languageCode) async {
     _selectedLanguage = languageCode;
+    _hasSelectedLanguage = true;
     
     // Save language preference
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.languageKey, languageCode);
+    await prefs.setBool('hasSelectedLanguage', true);
     
     notifyListeners();
   }
@@ -173,6 +177,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _loadLanguagePreference() async {
     final prefs = await SharedPreferences.getInstance();
     _selectedLanguage = prefs.getString(AppConstants.languageKey) ?? AppConstants.english;
+    _hasSelectedLanguage = prefs.getBool('hasSelectedLanguage') ?? false;
     notifyListeners();
   }
 }

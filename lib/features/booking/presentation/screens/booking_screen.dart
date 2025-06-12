@@ -7,6 +7,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../payment/presentation/screens/payment_screen.dart';
 import '../widgets/bee_box_counter.dart';
 import '../widgets/date_range_picker.dart';
+import '../providers/booking_provider.dart';
 
 class BookingScreen extends StatefulWidget {
   const BookingScreen({super.key});
@@ -27,6 +28,18 @@ class _BookingScreenState extends State<BookingScreen> {
   int _numberOfBoxes = 1;
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize from provider after build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+      setState(() {
+        _numberOfBoxes = bookingProvider.selectedBoxes.length;
+      });
+    });
+  }
+
+  @override
   void dispose() {
     _cropController.dispose();
     _locationController.dispose();
@@ -35,10 +48,71 @@ class _BookingScreenState extends State<BookingScreen> {
     super.dispose();
   }
 
+  Widget _buildSelectedBoxesCard(String languageCode) {
+    final bookingProvider = Provider.of<BookingProvider>(context);
+    final selectedBoxes = bookingProvider.selectedBoxes;
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.hive, color: AppTheme.primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Selected Boxes',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: selectedBoxes.map((boxNumber) {
+                return Chip(
+                  label: Text('Box ${boxNumber + 1}'),
+                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                  labelStyle: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Total Selected: ${selectedBoxes.length} boxes',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppTheme.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    final bookingProvider = Provider.of<BookingProvider>(context);
     final selectedLanguage = authProvider.selectedLanguage;
+
+    // Initialize number of boxes from provider
+    _numberOfBoxes = bookingProvider.selectedBoxes.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -55,6 +129,9 @@ class _BookingScreenState extends State<BookingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Selected Boxes Card
+                  _buildSelectedBoxesCard(selectedLanguage),
+                  const SizedBox(height: 24),
                   // Booking info card
                   Card(
                     elevation: 2,
@@ -356,6 +433,8 @@ class _BookingScreenState extends State<BookingScreen> {
         return;
       }
 
+      final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+
       // Calculate number of days
       final days = _endDate!.difference(_startDate!).inDays + 1;
       
@@ -370,6 +449,7 @@ class _BookingScreenState extends State<BookingScreen> {
         MaterialPageRoute(
           builder: (_) => PaymentScreen(
             bookingDetails: {
+              'selectedBoxes': bookingProvider.selectedBoxes.toList(),
               'crop': _cropController.text,
               'location': _locationController.text,
               'phone': _phoneController.text,

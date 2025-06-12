@@ -18,8 +18,8 @@ class AppConstants {
   static const String bookingsCollection = 'bookings';
   
   // Booking Constants
-  static const int depositPercentage = 60; // 60% of total rent
-  static const int dailyRentPerBox = 100; // ₹100 per day per box
+  static const int depositPercentage = 60; // 60% deposit required
+  static const int dailyRentPerBox = 500; // ₹500 per box per day
   
   // Error Messages
   static const String genericErrorMessage = 'Something went wrong. Please try again.';
