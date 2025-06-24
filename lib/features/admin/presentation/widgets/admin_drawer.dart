@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -26,24 +27,35 @@ class AdminDrawer extends StatelessWidget {
           // Drawer header with admin info
           UserAccountsDrawerHeader(
             accountName: Text(
-              user?.displayName ?? 'Admin User',
+              user?.displayName ?? 'Admin',
               style: const TextStyle(
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
             accountEmail: Text(
-              user?.email ?? 'admin@beeman.com',
+              user?.email ?? '',
+              style: const TextStyle(fontSize: 14),
             ),
             currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
-              child: Text(
-                user?.displayName?.substring(0, 1).toUpperCase() ?? 'A',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryColor,
-                ),
-              ),
+              child: user?.photoURL != null
+                  ? ClipOval(
+                      child: Image.network(
+                        user!.photoURL!,
+                        width: 72,
+                        height: 72,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Text(
+                      user?.displayName?.substring(0, 1).toUpperCase() ?? 'A',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
+                    ),
             ),
             decoration: const BoxDecoration(
               color: AppTheme.primaryColor,

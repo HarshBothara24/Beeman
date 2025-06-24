@@ -4,6 +4,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
+import 'registration_screen.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
   const LanguageSelectionScreen({super.key});
@@ -17,14 +18,14 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: SingleChildScrollView(
             child: Column(
               children: [
-                const Spacer(),
+                const SizedBox(height: 40),
                 const Icon(
                   Icons.translate,
                   size: 80,
@@ -64,7 +65,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   AppConstants.marathi,
                   'Marathi',
                 ),
-                const Spacer(),
+                const SizedBox(height: 40),
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -144,9 +145,9 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     authProvider.setLanguage(_selectedLanguage);
     
-    // Navigate to login screen after language selection
+    // Navigate to registration screen after language selection
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(builder: (_) => const RegistrationScreen()),
     );
   }
 }

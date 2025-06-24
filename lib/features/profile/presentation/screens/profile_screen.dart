@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // import '../../../../core/providers/auth_provider.dart';
-import '../../../auth/presentation/providers/auth_provider.dart'; // Updated import path
+import '../../../auth/presentation/providers/auth_provider.dart' as my_auth;
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({Key? key}) : super(key: key);
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -21,15 +23,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _addressController;
   bool _isEditing = false;
   bool _isLoading = false;
+  Map<String, dynamic>? userData;
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = Provider.of<my_auth.AuthProvider>(context, listen: false);
     _nameController = TextEditingController(text: authProvider.user?.displayName ?? '');
     _phoneController = TextEditingController(text: authProvider.user?.phoneNumber ?? '');
     _emailController = TextEditingController(text: authProvider.user?.email ?? '');
     _addressController = TextEditingController(text: ''); // Placeholder for address
+    fetchUserData();
   }
 
   @override
@@ -46,7 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _isEditing = !_isEditing;
       if (!_isEditing) {
         // Reset controllers to original values if canceling edit
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final authProvider = Provider.of<my_auth.AuthProvider>(context, listen: false);
         _nameController.text = authProvider.user?.displayName ?? '';
         _phoneController.text = authProvider.user?.phoneNumber ?? '';
         _emailController.text = authProvider.user?.email ?? '';
@@ -75,11 +80,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SnackBar(content: Text(_getText('profileUpdatedSuccessfully'))),
         );
       }
+
+      print('Before Firestore write');
+      final authProvider = Provider.of<my_auth.AuthProvider>(context, listen: false);
+      final user = authProvider.user;
+      await FirebaseFirestore.instance.collection('users').doc(user?.uid).set({
+        'displayName': _nameController.text,
+        'phoneNumber': _phoneController.text,
+        'email': _emailController.text,
+        'address': _addressController.text,
+      });
+      print('After Firestore write');
+    }
+  }
+
+  Future<void> fetchUserData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      setState(() {
+        userData = doc.data();
+        isLoading = false;
+      });
+    } else {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
   String _getText(String key) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = Provider.of<my_auth.AuthProvider>(context, listen: false);
     final languageCode = authProvider.languageCode;
     
     final Map<String, Map<String, String>> textMap = {
@@ -155,9 +186,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.user;
-
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (userData == null) {
+      return const Center(child: Text('No user data found.'));
+    }
     return Scaffold(
       appBar: AppBar(
         title: Text(_getText('profile')),
@@ -184,10 +218,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     CircleAvatar(
                       radius: 60,
                       backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                      backgroundImage: user?.photoURL != null
-                          ? NetworkImage(user!.photoURL!)
+                      backgroundImage: userData!['photoURL'] != null
+                          ? NetworkImage(userData!['photoURL'])
                           : null,
-                      child: user?.photoURL == null
+                      child: userData!['photoURL'] == null
                           ? const Icon(
                               Icons.person,
                               size: 60,

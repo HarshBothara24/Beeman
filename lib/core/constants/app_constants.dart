@@ -7,6 +7,7 @@ class AppConstants {
   // App Info
   static const String appName = 'BeeMan';
   static const String appVersion = '1.0.0';
+  static const String hostingUrl = 'https://beeman-771bb.firebaseapp.com';
   
   // API Endpoints
   static const String whatsappApiBaseUrl = 'https://api.whatsapp.com/v1/';

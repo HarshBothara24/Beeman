@@ -44,10 +44,6 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
-          if (!authProvider.hasSelectedLanguage) {
-            return const LanguageSelectionScreen();
-          }
-          
           return MaterialApp(
             title: 'BeeMan',
             debugShowCheckedModeBanner: false,
@@ -62,7 +58,9 @@ class MyApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            home: const SplashScreen(),
+            home: authProvider.hasSelectedLanguage
+                ? const SplashScreen()
+                : const LanguageSelectionScreen(),
           );
         },
       ),

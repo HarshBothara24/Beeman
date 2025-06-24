@@ -31,8 +31,41 @@
 
   <title>beeman</title>
   <link rel="manifest" href="manifest.json">
+  <meta name="google-signin-client_id" content="143517254254-33j4d1p4504q28oh0dast17aqjdcpd7o.apps.googleusercontent.com" />
 </head>
 <body>
+  <script>
+    // Your web app's Firebase configuration
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+    const firebaseConfig = {
+      apiKey: "AIzaSyBw09wDJw0MjEFJqyIxSRr-A433hpn7whg",
+      authDomain: "beeman-771bb.firebaseapp.com",
+      projectId: "beeman-771bb",
+      storageBucket: "beeman-771bb.firebasestorage.app",
+      messagingSenderId: "143517254254",
+      appId: "1:143517254254:web:a992358545576dcb37dc7f",
+      measurementId: "G-7MT9PC4Q6J"
+    };
+
+    // Initialize Firebase
+    // This is a simplified version. For a production app, you'd import from modules.
+    // However, to get started, we can use the global `firebase` object if you
+    // later include the full Firebase SDK script.
+    // For now, this configuration will be available.
+  </script>
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics-compat.js"></script>
+
+  <script>
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics();
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
+  <div id="gsi_button"></div>
 </body>
 </html>

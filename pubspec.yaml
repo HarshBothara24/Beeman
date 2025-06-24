@@ -12,22 +12,24 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   
+  firebase_auth: ^4.16.0
+  
   # Firebase packages
-  firebase_core: ^2.24.2
+  firebase_core: ^2.32.0
   # firebase_auth: ^4.15.3  # Commented out as it's causing issues
   cloud_firestore: ^4.13.6
   # firebase_functions: ^4.5.8  # Commented out as it's causing issues
   # firebase_storage: ^11.5.6  # Commented out as it's causing issues
   
   # Authentication
-  google_sign_in: ^6.1.6
+  google_sign_in: ^6.3.0
   
   # State management
   provider: ^6.1.1
   
   # UI components
   flutter_svg: ^2.0.9
-  intl: ^0.19.0
+  intl: ^0.20.2
   cached_network_image: ^3.3.0
   
   # Payment integration

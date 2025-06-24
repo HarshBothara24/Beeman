@@ -34,8 +34,15 @@ class _SplashScreenState extends State<SplashScreen> {
           MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
         );
       }
+    } else if (authProvider.isAuthenticated) {
+      // If authenticated, go to dashboard
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      }
     } else {
-      // Always go to login screen after splash
+      // Otherwise, go to login
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const LoginScreen()),

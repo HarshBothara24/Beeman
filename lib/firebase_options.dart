@@ -47,31 +47,30 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDBxd7X_y5ZThkb4XME7yTGZxy-kCVUtwg',
-    appId: '1:251901305410:web:25520b9bd71003842043db',
-    messagingSenderId: '251901305410',
-    projectId: 'beeman-d2037',
-    authDomain: 'beeman-d2037.firebaseapp.com',
-    storageBucket: 'beeman-d2037.firebasestorage.app',
-    measurementId: 'G-RV1YCXWRH3',
+    apiKey: 'AIzaSyBw09wDJw0MjEFJqyIxSRr-A433hpn7whg',
+    appId: '1:143517254254:web:a992358545576dcb37dc7f',
+    messagingSenderId: '143517254254',
+    projectId: 'beeman-771bb',
+    authDomain: 'beeman-771bb.firebaseapp.com',
+    storageBucket: 'beeman-771bb.firebasestorage.app',
+    measurementId: 'G-7MT9PC4Q6J',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAp68Wlekm-1uirdPltolX7FUhJR5bMIRY',
-    appId: '1:251901305410:android:06391a5d255645332043db',
-    messagingSenderId: '251901305410',
-    projectId: 'beeman-d2037',
-    storageBucket: 'beeman-d2037.firebasestorage.app',
+    apiKey: 'AIzaSyDgcjX2XuwIzkeQguZBefksFLvLobtdWn4',
+    appId: '1:143517254254:android:00d8abbe0abe23f937dc7f',
+    messagingSenderId: '143517254254',
+    projectId: 'beeman-771bb',
+    storageBucket: 'beeman-771bb.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyA11VEfbuJ6gAanhVSXhbJ9qVlRV8J-yvw',
-    appId: '1:251901305410:ios:93340b4c4749ef9b2043db',
-    messagingSenderId: '251901305410',
-    projectId: 'beeman-d2037',
-    storageBucket: 'beeman-d2037.firebasestorage.app',
-    iosClientId: '251901305410-rk0lsnmjfk41nv1352ckjr6ulecfu2kv.apps.googleusercontent.com',
+    apiKey: 'AIzaSyBUeI4AAhIIPWneF7MDm2BTY-Qb7lBnCHU',
+    appId: '1:143517254254:ios:711981546e00e80437dc7f',
+    messagingSenderId: '143517254254',
+    projectId: 'beeman-771bb',
+    storageBucket: 'beeman-771bb.firebasestorage.app',
+    iosClientId: '143517254254-988nht2231j7jiqqnjadbf5ji7r3bmif.apps.googleusercontent.com',
     iosBundleId: 'com.beeman.beeman',
   );
-
 }
