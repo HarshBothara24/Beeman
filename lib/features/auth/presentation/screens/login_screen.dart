@@ -178,6 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle(BuildContext context) async {
+    print('Google sign-in button pressed'); // Debug print
     setState(() {
       _isLoading = true;
     });
@@ -185,13 +186,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     try {
       final success = await authProvider.signInWithGoogle();
+      print('Sign-in success: ' + success.toString() + ', context.mounted: ' + context.mounted.toString()); // Debug print
       if (success && context.mounted) {
-        // Navigate to dashboard
+        print('Navigating to dashboard...'); // Debug print
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const DashboardScreen()),
         );
       } else if (context.mounted) {
-        // Show error message
+        print('Sign-in failed, showing error: ' + authProvider.errorMessage); // Debug print
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(authProvider.errorMessage),
@@ -200,9 +202,11 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
