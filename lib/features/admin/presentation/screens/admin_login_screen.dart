@@ -176,7 +176,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     });
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.signInWithEmailAndPassword(
+    final success = await authProvider.signInAsAdmin(
       _emailController.text.trim(),
       _passwordController.text.trim(),
     );

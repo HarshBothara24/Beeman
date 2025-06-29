@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/foundation.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/services/firestore_service.dart';
+import '../../../../core/models/firestore_models.dart';
 
 enum AuthStatus { initial, authenticated, unauthenticated, loading, error }
 
@@ -19,6 +21,9 @@ class AuthProvider extends ChangeNotifier {
   bool _isAdmin = false;
   bool _hasSelectedLanguage = false;
   
+  // User data from Firestore
+  UserModel? _userData;
+  
   // Getters
   fb_auth.User? get user => _user;
   AuthStatus get status => _status;
@@ -28,6 +33,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isAdmin => _isAdmin;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
   bool get hasSelectedLanguage => _hasSelectedLanguage;
+  UserModel? get userData => _userData;
   
   AuthProvider({fb_auth.FirebaseAuth? firebaseAuth})
       : _firebaseAuth = firebaseAuth ?? fb_auth.FirebaseAuth.instance {
@@ -38,14 +44,80 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _onAuthStateChanged(fb_auth.User? user) async {
     if (user == null) {
       _user = null;
+      _userData = null;
       _isAdmin = false;
       _status = AuthStatus.unauthenticated;
     } else {
       _user = user;
+      await _loadUserData();
       await _checkIfAdmin();
       _status = AuthStatus.authenticated;
     }
     notifyListeners();
+  }
+
+  // Load user data from Firestore
+  Future<void> _loadUserData() async {
+    if (_user == null) return;
+    
+    try {
+      final userData = await FirestoreService.getUser(_user!.uid);
+      if (userData != null) {
+        _userData = UserModel.fromFirestore(
+          await FirestoreService.usersCollection.doc(_user!.uid).get(),
+        );
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+    }
+  }
+
+  // Create user in Firestore after successful authentication
+  Future<void> _createUserInFirestore() async {
+    if (_user == null) return;
+    
+    try {
+      // Check if user already exists in Firestore
+      final existingUser = await FirestoreService.getUser(_user!.uid);
+      if (existingUser == null) {
+        // Create new user in Firestore
+        await FirestoreService.createUser(
+          uid: _user!.uid,
+          email: _user!.email ?? '',
+          name: _user!.displayName ?? 'User',
+          phone: _user!.phoneNumber,
+          userType: 'customer',
+        );
+        
+        // Reload user data
+        await _loadUserData();
+      }
+    } catch (e) {
+      print('Error creating user in Firestore: $e');
+    }
+  }
+
+  // Update user data in Firestore
+  Future<void> updateUserData({
+    String? name,
+    String? phone,
+    String? address,
+  }) async {
+    if (_user == null) return;
+    
+    try {
+      final updateData = <String, dynamic>{};
+      if (name != null) updateData['name'] = name;
+      if (phone != null) updateData['phone'] = phone;
+      if (address != null) updateData['address'] = address;
+      
+      await FirestoreService.updateUser(_user!.uid, updateData);
+      await _loadUserData(); // Reload user data
+      notifyListeners();
+    } catch (e) {
+      print('Error updating user data: $e');
+      rethrow;
+    }
   }
   
   // Check if user is already logged in (will be handled by authStateChanges)
@@ -67,6 +139,7 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
       _user = userCredential.user;
+      await _createUserInFirestore();
       await _checkIfAdmin();
       _status = AuthStatus.authenticated;
       notifyListeners();
@@ -102,6 +175,7 @@ class AuthProvider extends ChangeNotifier {
           _user = userCredential.user;
           print('Firebase user (web): ' + _user.toString()); // Debug print
           if (_user != null) {
+            await _createUserInFirestore();
             await _checkIfAdmin();
             _status = AuthStatus.authenticated;
             notifyListeners();
@@ -136,6 +210,7 @@ class AuthProvider extends ChangeNotifier {
         _user = userCredential.user;
         print('Firebase user (mobile): ' + _user.toString()); // Debug print
         if (_user != null) {
+          await _createUserInFirestore();
           await _checkIfAdmin();
           _status = AuthStatus.authenticated;
           notifyListeners();
@@ -162,6 +237,7 @@ class AuthProvider extends ChangeNotifier {
       await _googleSignIn.signOut();
       await _firebaseAuth.signOut();
       _user = null;
+      _userData = null;
       _isAdmin = false;
       _status = AuthStatus.unauthenticated;
       notifyListeners();
@@ -172,10 +248,99 @@ class AuthProvider extends ChangeNotifier {
     }
   }
   
-  // Check if user is admin
+  // Check if user is admin using Firestore
   Future<void> _checkIfAdmin() async {
-    // For demo purposes
-    _isAdmin = _user?.email == 'admin@beeman.com';
+    if (_user == null) {
+      _isAdmin = false;
+      return;
+    }
+    
+    try {
+      _isAdmin = await FirestoreService.isAdmin(_user!.uid);
+    } catch (e) {
+      print('Error checking admin status: $e');
+      _isAdmin = false;
+    }
+  }
+  
+  // Admin-specific authentication method
+  Future<bool> signInAsAdmin(String email, String password) async {
+    _status = AuthStatus.loading;
+    notifyListeners();
+    
+    try {
+      // Hardcoded admin credentials
+      const String adminEmail = 'admin@beeman.com';
+      const String adminPassword = 'admin123';
+      
+      // Check if credentials match
+      if (email == adminEmail && password == adminPassword) {
+        // Create a mock user for admin
+        _isAdmin = true;
+        _status = AuthStatus.authenticated;
+        notifyListeners();
+        return true;
+      } else {
+        _status = AuthStatus.error;
+        _errorMessage = 'Invalid admin credentials';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _status = AuthStatus.error;
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Register new user with email and password
+  Future<bool> registerWithEmailAndPassword({
+    required String email,
+    required String password,
+    required String name,
+    String? phone,
+    String? address,
+  }) async {
+    _status = AuthStatus.loading;
+    notifyListeners();
+    
+    try {
+      final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      
+      _user = userCredential.user;
+      
+      if (_user != null) {
+        // Create user in Firestore
+        await FirestoreService.createUser(
+          uid: _user!.uid,
+          email: email,
+          name: name,
+          phone: phone,
+          address: address,
+          userType: 'customer',
+        );
+        
+        await _loadUserData();
+        await _checkIfAdmin();
+        _status = AuthStatus.authenticated;
+        notifyListeners();
+        return true;
+      }
+      
+      _status = AuthStatus.error;
+      _errorMessage = 'Failed to create user';
+      notifyListeners();
+      return false;
+    } on fb_auth.FirebaseAuthException catch (e) {
+      _status = AuthStatus.error;
+      _errorMessage = e.message ?? 'An unknown error occurred.';
+      notifyListeners();
+      return false;
+    }
   }
   
   // Set language preference
