@@ -14,6 +14,7 @@ import 'features/auth/presentation/screens/language_selection_screen.dart';
 import 'widgets/adaptive_layout.dart';
 import 'constants/breakpoints.dart';
 import 'utils/responsive_utils.dart';
+import 'features/testing/simple_firestore_test.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -123,6 +124,17 @@ class HomeScreen extends StatelessWidget {
           _buildWelcomeSection(context),
           SizedBox(height: ResponsiveUtils.getResponsivePadding(context)),
           _buildNavigationGrid(context),
+          const SizedBox(height: 24),
+          // TEMP: Developer/Test button
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SimpleFirestoreTest()),
+              );
+            },
+            child: const Text('Simple Firestore Test'),
+          ),
         ],
       ),
     );

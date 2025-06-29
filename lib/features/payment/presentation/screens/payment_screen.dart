@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -9,6 +10,8 @@ import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../booking/presentation/providers/booking_provider.dart';
 import '../../../booking/domain/models/booking_model.dart';
 import '../widgets/payment_method_card.dart';
+import '../../../../core/services/firestore_service.dart';
+import '../../../../core/models/firestore_models.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Map<String, dynamic> bookingDetails;
@@ -225,8 +228,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  void _processPayment(String languageCode) async {
-    // Set processing state
+  Future<void> _processPayment(String languageCode) async {
     setState(() {
       _isProcessing = true;
     });
@@ -239,63 +241,80 @@ class _PaymentScreenState extends State<PaymentScreen> {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
 
-      // Create a booking model
-      final booking = BookingModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(), // Temporary ID
-        userId: authProvider.user?.uid ?? '',
-        boxNumbers: Set<int>.from(widget.bookingDetails['selectedBoxes']),
-        crop: widget.bookingDetails['crop'],
-        location: widget.bookingDetails['location'],
-        phone: widget.bookingDetails['phone'],
-        startDate: widget.bookingDetails['startDate'],
-        endDate: widget.bookingDetails['endDate'],
-        numberOfBoxes: widget.bookingDetails['numberOfBoxes'],
-        notes: widget.bookingDetails['notes'],
-        totalAmount: widget.bookingDetails['totalRent'].toDouble(),
-        depositAmount: widget.bookingDetails['depositAmount'].toDouble(),
-        status: 'pending',
-        createdAt: DateTime.now(),
-      );
+      try {
+        // Create booking in Firestore using the correct service
+        final bookingId = await FirestoreService.createBooking(
+          userId: authProvider.user?.uid ?? '',
+          beeBoxId: 'bee_box_001', // Default bee box ID - you can make this dynamic later
+          startDate: widget.bookingDetails['startDate'],
+          endDate: widget.bookingDetails['endDate'],
+          quantity: widget.bookingDetails['numberOfBoxes'],
+          totalAmount: widget.bookingDetails['totalRent'].toDouble(),
+          notes: widget.bookingDetails['notes'] ?? '',
+        );
 
-      // Add booking to provider
-      bookingProvider.addBooking(booking);
+        // Also create a payment record
+        await FirestoreService.createPayment(
+          bookingId: bookingId,
+          userId: authProvider.user?.uid ?? '',
+          amount: widget.bookingDetails['totalRent'].toDouble(),
+          paymentMethod: _selectedPaymentMethod == 'upi' ? 'UPI' : 'Cash',
+          status: 'completed',
+          transactionId: 'TXN_${DateTime.now().millisecondsSinceEpoch}',
+        );
 
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: Text(_getPaymentSuccessText(languageCode)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.check_circle,
-                color: Colors.green,
-                size: 64,
-              ),
-              const SizedBox(height: 16),
-              Text(_getPaymentSuccessMessageText(languageCode)),
-              const SizedBox(height: 8),
-              Text(
-                _getBookingIdText(languageCode),
-                style: const TextStyle(fontWeight: FontWeight.bold),
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            title: Text(_getPaymentSuccessText(languageCode)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 64,
+                ),
+                const SizedBox(height: 16),
+                Text(_getPaymentSuccessMessageText(languageCode)),
+                const SizedBox(height: 8),
+                Text(
+                  '${_getBookingIdText(languageCode)}: $bookingId',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  // Navigate to dashboard
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const DashboardScreen()),
+                    (route) => false,
+                  );
+                },
+                child: Text(_getGoToDashboardText(languageCode)),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                // Navigate to dashboard
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const DashboardScreen()),
-                  (route) => false,
-                );
-              },
-              child: Text(_getGoToDashboardText(languageCode)),
-            ),
-          ],
-        ),
-      );
+        );
+      } catch (e) {
+        // Show error dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error'),
+            content: Text('Failed to create booking: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     }
 
     // Reset processing state
