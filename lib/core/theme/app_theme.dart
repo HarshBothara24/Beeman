@@ -32,7 +32,6 @@ class AppTheme {
       primary: primaryColor,
       secondary: secondaryColor,
       surface: cardColor,
-      background: backgroundColor,
       error: bookedColor,
     ),
     scaffoldBackgroundColor: backgroundColor,

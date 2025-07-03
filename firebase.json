@@ -1,1 +1,51 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"beeman-771bb","appId":"1:143517254254:android:00d8abbe0abe23f937dc7f","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"beeman-771bb","configurations":{"android":"1:143517254254:android:00d8abbe0abe23f937dc7f","ios":"1:143517254254:ios:711981546e00e80437dc7f","web":"1:143517254254:web:a992358545576dcb37dc7f"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "beeman-771bb",
+          "appId": "1:143517254254:android:00d8abbe0abe23f937dc7f",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "beeman-771bb",
+          "configurations": {
+            "android": "1:143517254254:android:00d8abbe0abe23f937dc7f",
+            "ios": "1:143517254254:ios:711981546e00e80437dc7f",
+            "web": "1:143517254254:web:a992358545576dcb37dc7f"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "nam5",
+    "rules": "rules.dart",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "database": {
+      "port": 9000
+    },
+    "storage": {
+      "port": 9199
+    },
+    "ui": {
+      "enabled": true,
+      "port": 0
+    },
+    "singleProjectMode": true
+  },
+  "database": {
+    "rules": "database.rules.json"
+  }
+}

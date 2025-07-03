@@ -9,6 +9,7 @@ import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../booking/presentation/providers/booking_provider.dart';
 import '../../../booking/domain/models/booking_model.dart';
 import '../widgets/payment_method_card.dart';
+import '../../../booking/data/services/booking_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Map<String, dynamic> bookingDetails;
@@ -226,22 +227,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   void _processPayment(String languageCode) async {
-    // Set processing state
     setState(() {
       _isProcessing = true;
     });
 
-    // Simulate payment processing
     await Future.delayed(const Duration(seconds: 2));
 
-    // Show success dialog
     if (mounted) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+      final bookingService = BookingService();
 
-      // Create a booking model
       final booking = BookingModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(), // Temporary ID
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: authProvider.user?.uid ?? '',
         boxNumbers: Set<int>.from(widget.bookingDetails['selectedBoxes']),
         crop: widget.bookingDetails['crop'],
@@ -257,8 +255,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
         createdAt: DateTime.now(),
       );
 
-      // Add booking to provider
-      bookingProvider.addBooking(booking);
+      try {
+        await bookingService.createBooking(booking);
+        bookingProvider.addBooking(booking);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create booking: $e'), backgroundColor: Colors.red),
+        );
+        setState(() { _isProcessing = false; });
+        return;
+      }
 
       showDialog(
         context: context,
@@ -285,7 +291,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                // Navigate to dashboard
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const DashboardScreen()),
                   (route) => false,
@@ -298,7 +303,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
       );
     }
 
-    // Reset processing state
     setState(() {
       _isProcessing = false;
     });

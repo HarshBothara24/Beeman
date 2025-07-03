@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -10,7 +9,6 @@ import '../screens/bee_box_management_screen.dart';
 import '../screens/booking_management_screen.dart';
 import '../screens/payment_management_screen.dart';
 import '../screens/user_management_screen.dart';
-import '../screens/settings_screen.dart';
 
 class AdminDrawer extends StatelessWidget {
   const AdminDrawer({super.key});

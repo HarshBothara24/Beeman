@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/booking_provider.dart';
 import './booking_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BeeBoxSelectionScreen extends StatefulWidget {
   const BeeBoxSelectionScreen({super.key});
@@ -39,16 +40,16 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
           // Grid of bee boxes
           Expanded(
             child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), // Reduced padding
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 8, // Increased number of columns
+                crossAxisCount: 8,
                 childAspectRatio: 1,
-                crossAxisSpacing: 8, // Reduced spacing
-                mainAxisSpacing: 8, // Reduced spacing
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
               ),
-              itemCount: 20, // Total number of boxes
+              itemCount: 20,
               itemBuilder: (context, index) {
-                final isAvailable = index % 3 != 0; // Demo availability
+                final isAvailable = index % 3 != 0;
                 return _buildBeeBox(index, isAvailable);
               },
             ),
@@ -97,12 +98,10 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
                             listen: false
                           );
                           final totalAmount = selectedBoxes.length * 500.0;
-                          
                           bookingProvider.setBookingDetails(
                             selectedBoxes,
                             totalAmount,
                           );
-
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -146,8 +145,8 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
     );
   }
 
-  Widget _buildBeeBox(int index, bool isAvailable) {
-    final isSelected = selectedBoxes.contains(index);
+  Widget _buildBeeBox(int boxId, bool isAvailable) {
+    final isSelected = selectedBoxes.contains(boxId);
     final color = !isAvailable
         ? Colors.grey
         : isSelected
@@ -159,9 +158,9 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
           ? () {
               setState(() {
                 if (isSelected) {
-                  selectedBoxes.remove(index);
+                  selectedBoxes.remove(boxId);
                 } else {
-                  selectedBoxes.add(index);
+                  selectedBoxes.add(boxId);
                 }
               });
             }
@@ -169,13 +168,13 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
       child: Container(
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(6), // Smaller border radius
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Center(
           child: Text(
-            '${index + 1}', // Simplified text
+            boxId.toString(),
             style: TextStyle(
-              fontSize: 12, // Smaller font size
+              fontSize: 12,
               fontWeight: FontWeight.bold,
               color: isAvailable ? Colors.white : Colors.black54,
             ),
