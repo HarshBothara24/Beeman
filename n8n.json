@@ -1,0 +1,96 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "face-swap",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "id": "webhook-start",
+      "description": "Receives the source and target image URLs for face swapping."
+    },
+    {
+      "parameters": {
+        "url": "YOUR_EXTERNAL_FACE_SWAP_API_ENDPOINT",
+        "authentication": "headerAuth",
+        "sendHeaders": true,
+        "headerParameters": [
+          {
+            "name": "Authorization",
+            "value": "Bearer YOUR_API_KEY"
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "requestMethod": "POST",
+        "jsonBody": true,
+        "bodyParameters": [
+          {
+            "name": "source_image_url",
+            "value": "={{$json.body.source_image_url}}"
+          },
+          {
+            "name": "target_image_url",
+            "value": "={{$json.body.target_image_url}}"
+          }
+        ],
+        "options": {}
+      },
+      "name": "Call Face Swap API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "id": "call-api",
+      "description": "Sends image URLs to the external face swap API.",
+      "dialog": {
+        "activate": true,
+        "parameters": {
+          "mode": "json"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "id": "webhook-respond",
+      "description": "Sends the face-swapped image URL back as a response.",
+      "dialog": {
+        "activate": true,
+        "parameters": {
+          "mode": "json"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call Face Swap API",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Call Face Swap API": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

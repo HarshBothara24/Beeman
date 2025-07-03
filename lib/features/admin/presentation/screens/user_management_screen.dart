@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -17,113 +18,49 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   String _searchQuery = '';
   String _selectedFilter = 'All';
 
-  // Mock data for users
-  final List<Map<String, dynamic>> _users = [
-    {
-      'id': 'U001',
-      'name': 'Rajesh Sharma',
-      'email': 'rajesh.sharma@example.com',
-      'phone': '+91 9876543210',
-      'location': 'Pune, Maharashtra',
-      'role': 'Farmer',
-      'status': 'Active',
-      'registrationDate': '2023-08-15',
-      'lastActive': '2023-11-25',
-      'bookingsCount': 3,
-    },
-    {
-      'id': 'U002',
-      'name': 'Priya Patel',
-      'email': 'priya.patel@example.com',
-      'phone': '+91 8765432109',
-      'location': 'Nashik, Maharashtra',
-      'role': 'Farmer',
-      'status': 'Active',
-      'registrationDate': '2023-09-05',
-      'lastActive': '2023-11-20',
-      'bookingsCount': 1,
-    },
-    {
-      'id': 'U003',
-      'name': 'Amit Kumar',
-      'email': 'amit.kumar@example.com',
-      'phone': '+91 7654321098',
-      'location': 'Ratnagiri, Maharashtra',
-      'role': 'Farmer',
-      'status': 'Inactive',
-      'registrationDate': '2023-07-10',
-      'lastActive': '2023-10-15',
-      'bookingsCount': 0,
-    },
-    {
-      'id': 'U004',
-      'name': 'Sneha Desai',
-      'email': 'sneha.desai@example.com',
-      'phone': '+91 6543210987',
-      'location': 'Mahabaleshwar, Maharashtra',
-      'role': 'Orchard Owner',
-      'status': 'Active',
-      'registrationDate': '2023-10-20',
-      'lastActive': '2023-11-22',
-      'bookingsCount': 2,
-    },
-    {
-      'id': 'U005',
-      'name': 'Vikram Singh',
-      'email': 'vikram.singh@example.com',
-      'phone': '+91 5432109876',
-      'location': 'Kolhapur, Maharashtra',
-      'role': 'Farmer',
-      'status': 'Blocked',
-      'registrationDate': '2023-06-30',
-      'lastActive': '2023-09-10',
-      'bookingsCount': 0,
-    },
-  ];
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  Stream<QuerySnapshot> _getUsersStream() {
+    return FirebaseFirestore.instance.collection('users').snapshots();
   }
 
-  List<Map<String, dynamic>> _getFilteredUsers() {
-    return _users.where((user) {
+  List<DocumentSnapshot> _getFilteredUsers(List<DocumentSnapshot> users) {
+    return users.where((user) {
+      final data = user.data() as Map<String, dynamic>;
       // Filter by status
-      final statusMatch = _selectedFilter == 'All' || user['status'] == _selectedFilter;
-      
+      final statusMatch = _selectedFilter == 'All' || data['status'] == _selectedFilter;
+
       // Filter by search query if present
       final searchMatch = _searchQuery.isEmpty ||
-          user['id'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          user['name'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          user['email'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          user['phone'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          user['location'].toLowerCase().contains(_searchQuery.toLowerCase());
-      
+          (data['id'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (data['name'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (data['email'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (data['phone'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (data['location'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
+
       return statusMatch && searchMatch;
     }).toList();
   }
 
-  void _showUserDetails(Map<String, dynamic> user) {
+  void _showUserDetails(DocumentSnapshot user) {
+    final data = user.data() as Map<String, dynamic>;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${_getText('userDetails')}: ${user['name']}'),
+        title: Text('${_getText('userDetails')}: ${data['name']}'),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow(_getText('userId'), user['id']),
-              _buildDetailRow(_getText('name'), user['name']),
-              _buildDetailRow(_getText('email'), user['email']),
-              _buildDetailRow(_getText('phone'), user['phone']),
-              _buildDetailRow(_getText('location'), user['location']),
-              _buildDetailRow(_getText('role'), user['role']),
-              _buildDetailRow(_getText('status'), user['status']),
-              _buildDetailRow(_getText('registrationDate'), user['registrationDate']),
-              _buildDetailRow(_getText('lastActive'), user['lastActive']),
-              _buildDetailRow(_getText('bookingsCount'), user['bookingsCount'].toString()),
+              _buildDetailRow(_getText('userId'), data['id'] ?? ''),
+              _buildDetailRow(_getText('name'), data['name'] ?? ''),
+              _buildDetailRow(_getText('email'), data['email'] ?? ''),
+              _buildDetailRow(_getText('phone'), data['phone'] ?? ''),
+              _buildDetailRow(_getText('location'), data['location'] ?? ''),
+              _buildDetailRow(_getText('role'), data['role'] ?? ''),
+              _buildDetailRow(_getText('status'), data['status'] ?? ''),
+              _buildDetailRow(_getText('registrationDate'), data['registrationDate'] ?? ''),
+              _buildDetailRow(_getText('lastActive'), data['lastActive'] ?? ''),
+              _buildDetailRow(_getText('bookingsCount'), (data['bookingsCount'] ?? 0).toString()),
             ],
           ),
         ),
@@ -165,8 +102,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  void _showChangeStatusDialog(Map<String, dynamic> user) {
-    String newStatus = user['status'];
+  void _showChangeStatusDialog(DocumentSnapshot user) {
+    final data = user.data() as Map<String, dynamic>;
+    String newStatus = data['status'] ?? '';
     
     showDialog(
       context: context,
@@ -214,12 +152,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           ),
           TextButton(
             onPressed: () {
-              setState(() {
-                final index = _users.indexWhere((u) => u['id'] == user['id']);
-                if (index != -1) {
-                  _users[index]['status'] = newStatus;
-                }
-              });
+              FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.id)
+                  .update({'status': newStatus});
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(_getText('statusUpdated'))),
@@ -447,164 +383,118 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Widget _buildUserList() {
-    final filteredUsers = _getFilteredUsers();
-    
-    if (filteredUsers.isEmpty) {
-      return Center(
-        child: Text(_getText('noUsersFound')),
-      );
-    }
-    
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredUsers.length,
-      itemBuilder: (context, index) {
-        final user = filteredUsers[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                      child: Text(
-                        user['name'].substring(0, 1),
-                        style: const TextStyle(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user['name'],
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            user['email'],
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    _buildStatusChip(user['status']),
-                  ],
+    return StreamBuilder<QuerySnapshot>(
+      stream: _getUsersStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        final users = snapshot.data?.docs ?? [];
+        final filteredUsers = _getFilteredUsers(users);
+
+        if (filteredUsers.isEmpty) {
+          return Center(
+            child: Text(_getText('noUsersFound')),
+          );
+        }
+
+        return ListView.separated(
+          itemCount: filteredUsers.length,
+          separatorBuilder: (context, index) => Divider(height: 1),
+          itemBuilder: (context, index) {
+            final user = filteredUsers[index];
+            final data = user.data() as Map<String, dynamic>;
+            return ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppTheme.primaryColor,
+                child: Text(
+                  (data['displayName'] ?? data['email'] ?? 'U').substring(0, 1).toUpperCase(),
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
-                const Divider(height: 24),
-                _buildInfoRow(Icons.phone, _getText('phone'), user['phone']),
-                _buildInfoRow(Icons.location_on, _getText('location'), user['location']),
-                _buildInfoRow(
-                  Icons.calendar_today,
-                  _getText('registrationDate'),
-                  user['registrationDate'],
-                ),
-                _buildInfoRow(
-                  Icons.shopping_bag,
-                  _getText('bookingsCount'),
-                  user['bookingsCount'].toString(),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      icon: const Icon(Icons.visibility),
-                      label: Text(_getText('viewDetails')),
-                      onPressed: () => _showUserDetails(user),
-                    ),
-                    TextButton.icon(
-                      icon: const Icon(Icons.edit),
-                      label: Text(_getText('changeStatus')),
-                      onPressed: () => _showChangeStatusDialog(user),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+              ),
+              title: Text(data['displayName'] ?? data['email'] ?? 'Unknown'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Email: ${data['email'] ?? 'N/A'}'),
+                  Text('Phone: ${data['phone'] ?? 'N/A'}'),
+                  Text('Registered: ${data['createdAt'] != null ? data['createdAt'].toString().substring(0, 10) : 'N/A'}'),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildStatusBadge(data['status'] ?? 'Active'),
+                  IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _confirmDeleteUser(user),
+                  ),
+                ],
+              ),
+              onTap: () => _showUserDetails(user),
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppTheme.primaryColor),
-          const SizedBox(width: 8),
-          Text(
-            '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+  Widget _buildStatusBadge(String status) {
+    Color color;
+    switch (status.toLowerCase()) {
+      case 'active':
+        color = Colors.green;
+        break;
+      case 'inactive':
+        color = Colors.orange;
+        break;
+      case 'blocked':
+        color = Colors.red;
+        break;
+      default:
+        color = Colors.grey;
+    }
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
       ),
     );
   }
 
-  Widget _buildStatusChip(String status) {
-    Color chipColor;
-    switch (status) {
-      case 'Active':
-        chipColor = Colors.green;
-        break;
-      case 'Inactive':
-        chipColor = Colors.orange;
-        break;
-      case 'Blocked':
-        chipColor = Colors.red;
-        break;
-      default:
-        chipColor = Colors.grey;
-    }
-
-    String statusText;
-    switch (status) {
-      case 'Active':
-        statusText = _getText('active');
-        break;
-      case 'Inactive':
-        statusText = _getText('inactive');
-        break;
-      case 'Blocked':
-        statusText = _getText('blocked');
-        break;
-      default:
-        statusText = status;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.1),
-        border: Border.all(color: chipColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        statusText,
-        style: TextStyle(color: chipColor, fontSize: 12),
+  void _confirmDeleteUser(DocumentSnapshot user) {
+    final data = user.data() as Map<String, dynamic>;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete User'),
+        content: Text('Are you sure you want to delete ${data['displayName'] ?? data['email']}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await FirebaseFirestore.instance.collection('users').doc(user.id).delete();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('User deleted')),
+              );
+            },
+            child: Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }

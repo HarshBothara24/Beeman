@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
@@ -103,39 +103,52 @@ class AdminDashboardScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Stats cards
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  children: [
-                    _buildStatCard(
-                      'Total Bookings',
-                      bookings.length.toString(),
-                      Icons.calendar_today,
-                      Colors.blue,
-                    ),
-                    _buildStatCard(
-                      'Active Bookings',
-                      bookings.where((b) => b.status == 'active').length.toString(),
-                      Icons.hive,
-                      Colors.green,
-                    ),
-                    _buildStatCard(
-                      'Pending Bookings',
-                      bookings.where((b) => b.status == 'pending').length.toString(),
-                      Icons.pending,
-                      Colors.orange,
-                    ),
-                    _buildStatCard(
-                      'Total Revenue',
-                      '₹${bookings.fold(0.0, (sum, b) => sum + b.totalAmount)}',
-                      Icons.money,
-                      Colors.purple,
-                    ),
-                  ],
+                // Stats cards (real-time)
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('bookings').snapshots(),
+                  builder: (context, snapshot) {
+                    final bookings = snapshot.hasData ? snapshot.data!.docs : [];
+                    final totalBookings = bookings.length;
+                    final activeBookings = bookings.where((b) => (b.data() as Map<String, dynamic>)['status'] == 'active').length;
+                    final pendingBookings = bookings.where((b) => (b.data() as Map<String, dynamic>)['status'] == 'pending').length;
+                    final totalRevenue = bookings.fold<double>(0.0, (sum, b) => sum + ((b.data() as Map<String, dynamic>)['totalAmount'] ?? 0.0));
+                    return GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                      children: [
+                        GestureDetector(
+                          onTap: () => _navigateToBookingManagement(context),
+                          child: _buildStatCard(
+                            'Total Bookings',
+                            totalBookings.toString(),
+                            Icons.calendar_today,
+                            Colors.blue,
+                          ),
+                        ),
+                        _buildStatCard(
+                          'Active Bookings',
+                          activeBookings.toString(),
+                          Icons.hive,
+                          Colors.green,
+                        ),
+                        _buildStatCard(
+                          'Pending Bookings',
+                          pendingBookings.toString(),
+                          Icons.pending,
+                          Colors.orange,
+                        ),
+                        _buildStatCard(
+                          'Total Revenue',
+                          '₹$totalRevenue',
+                          Icons.money,
+                          Colors.purple,
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
                 // Dashboard title
