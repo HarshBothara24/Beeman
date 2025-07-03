@@ -1,4 +1,5 @@
 /// This file contains all the constants used throughout the app
+library;
 
 class AppConstants {
   // Private constructor to prevent instantiation

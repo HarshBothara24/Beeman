@@ -8,7 +8,7 @@ import '../screens/login_screen.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
-  const RegistrationScreen({Key? key}) : super(key: key);
+  const RegistrationScreen({super.key});
 
   @override
   State<RegistrationScreen> createState() => _RegistrationScreenState();
@@ -211,7 +211,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                               setState(() => _isLoading = true);
                               try {
                                 final success = await authProvider.signInWithGoogle();
-                                print('signInWithGoogle returned: ' + success.toString()); // Debug print
+                                print('signInWithGoogle returned: $success'); // Debug print
                                 if (success && context.mounted) {
                                   // Write user data to Firestore
                                   final user = authProvider.user;
@@ -230,7 +230,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                     MaterialPageRoute(builder: (context) => const DashboardScreen()),
                                   );
                                 } else if (context.mounted) {
-                                  print('Google sign-in failed: ' + authProvider.errorMessage); // Debug print
+                                  print('Google sign-in failed: ${authProvider.errorMessage}'); // Debug print
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(content: Text(authProvider.errorMessage)),
                                   );

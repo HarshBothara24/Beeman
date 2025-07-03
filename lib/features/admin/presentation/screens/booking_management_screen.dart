@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -18,74 +19,6 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  // Mock data for bookings
-  final List<Map<String, dynamic>> _bookings = [
-    {
-      'id': 'BK001',
-      'userId': 'U001',
-      'userName': 'Rajesh Sharma',
-      'userPhone': '+91 9876543210',
-      'crop': 'Sunflower',
-      'location': 'Pune, Maharashtra',
-      'startDate': '2023-11-15',
-      'endDate': '2023-12-15',
-      'boxCount': 5,
-      'totalAmount': 12500.0,
-      'paymentStatus': 'Paid',
-      'bookingStatus': 'active',
-      'notes': 'Farmer requested delivery to the field',
-      'createdAt': '2023-11-10',
-    },
-    {
-      'id': 'BK002',
-      'userId': 'U002',
-      'userName': 'Priya Patel',
-      'userPhone': '+91 8765432109',
-      'crop': 'Apple',
-      'location': 'Nashik, Maharashtra',
-      'startDate': '2023-10-01',
-      'endDate': '2023-11-01',
-      'boxCount': 3,
-      'totalAmount': 7500.0,
-      'paymentStatus': 'Paid',
-      'bookingStatus': 'completed',
-      'notes': '',
-      'createdAt': '2023-09-25',
-    },
-    {
-      'id': 'BK003',
-      'userId': 'U003',
-      'userName': 'Amit Kumar',
-      'userPhone': '+91 7654321098',
-      'crop': 'Mango',
-      'location': 'Ratnagiri, Maharashtra',
-      'startDate': '2023-12-01',
-      'endDate': '2024-01-01',
-      'boxCount': 4,
-      'totalAmount': 10000.0,
-      'paymentStatus': 'Pending',
-      'bookingStatus': 'active',
-      'notes': 'First-time customer, needs guidance',
-      'createdAt': '2023-11-20',
-    },
-    {
-      'id': 'BK004',
-      'userId': 'U004',
-      'userName': 'Sneha Desai',
-      'userPhone': '+91 6543210987',
-      'crop': 'Strawberry',
-      'location': 'Mahabaleshwar, Maharashtra',
-      'startDate': '2023-09-15',
-      'endDate': '2023-10-15',
-      'boxCount': 2,
-      'totalAmount': 5000.0,
-      'paymentStatus': 'Paid',
-      'bookingStatus': 'cancelled',
-      'notes': 'Cancelled due to weather conditions',
-      'createdAt': '2023-09-10',
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -99,45 +32,61 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _getFilteredBookings(String status) {
-    return _bookings.where((booking) {
+  Stream<QuerySnapshot> _getBookingsStream() {
+    return FirebaseFirestore.instance.collection('bookings').snapshots();
+  }
+
+  List<DocumentSnapshot> _getFilteredBookings(List<DocumentSnapshot> bookings, String status) {
+    return bookings.where((booking) {
+      final data = booking.data() as Map<String, dynamic>;
       // Filter by status
-      final statusMatch = booking['bookingStatus'] == status;
-      
+      final statusMatch = data['status'] == status;
+
       // Filter by search query if present
       final searchMatch = _searchQuery.isEmpty ||
-          booking['id'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          booking['userName'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          booking['userPhone'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          booking['crop'].toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          booking['location'].toLowerCase().contains(_searchQuery.toLowerCase());
-      
+          (data['id'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (data['userName'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (data['userPhone'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (data['crop'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          (data['location'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
+
       return statusMatch && searchMatch;
     }).toList();
   }
 
-  void _showBookingDetails(Map<String, dynamic> booking) {
+  Future<Map<String, dynamic>?> _fetchUserDetails(String userId) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      return userDoc.data();
+    } catch (e) {
+      print('Error fetching user details: $e');
+      return null;
+    }
+  }
+
+  void _showBookingDetails(DocumentSnapshot booking) {
+    final data = booking.data() as Map<String, dynamic>;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('${_getText('bookingDetails')}: ${booking['id']}'),
+        title: Text('${_getText('bookingDetails')}: ${data['id']}'),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow(_getText('customer'), booking['userName']),
-              _buildDetailRow(_getText('phone'), booking['userPhone']),
-              _buildDetailRow(_getText('crop'), booking['crop']),
-              _buildDetailRow(_getText('location'), booking['location']),
-              _buildDetailRow(_getText('dateRange'), '${booking['startDate']} to ${booking['endDate']}'),
-              _buildDetailRow(_getText('boxCount'), booking['boxCount'].toString()),
-              _buildDetailRow(_getText('totalAmount'), '₹${booking['totalAmount']}'),
-              _buildDetailRow(_getText('paymentStatus'), booking['paymentStatus']),
-              _buildDetailRow(_getText('bookingStatus'), booking['bookingStatus']),
-              if (booking['notes'].isNotEmpty)
-                _buildDetailRow(_getText('notes'), booking['notes']),
-              _buildDetailRow(_getText('createdAt'), booking['createdAt']),
+              _buildDetailRow(_getText('customer'), data['userName'] ?? ''),
+              _buildDetailRow(_getText('phone'), data['userPhone'] ?? ''),
+              _buildDetailRow(_getText('crop'), data['crop'] ?? ''),
+              _buildDetailRow(_getText('location'), data['location'] ?? ''),
+              _buildDetailRow(_getText('dateRange'), '${data['startDate']} to ${data['endDate']}'),
+              _buildDetailRow(_getText('boxCount'), (data['boxCount'] ?? 0).toString()),
+              _buildDetailRow(_getText('totalAmount'), '₹${data['totalAmount']}'),
+              _buildDetailRow(_getText('paymentStatus'), data['paymentStatus'] ?? ''),
+              _buildDetailRow(_getText('bookingStatus'), data['status'] ?? ''),
+              if (data['notes'] != null && data['notes'].isNotEmpty)
+                _buildDetailRow(_getText('notes'), data['notes']),
+              _buildDetailRow(_getText('createdAt'), data['createdAt'] ?? ''),
             ],
           ),
         ),
@@ -146,7 +95,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
             onPressed: () => Navigator.pop(context),
             child: Text(_getText('close')),
           ),
-          if (booking['bookingStatus'] == 'active')
+          if (data['status'] == 'active')
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
@@ -180,8 +129,9 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
     );
   }
 
-  void _showStatusChangeDialog(Map<String, dynamic> booking) {
-    String newStatus = booking['bookingStatus'];
+  void _showStatusChangeDialog(DocumentSnapshot booking) {
+    final data = booking.data() as Map<String, dynamic>;
+    String newStatus = data['status'] ?? '';
     
     showDialog(
       context: context,
@@ -229,12 +179,10 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
           ),
           TextButton(
             onPressed: () {
-              setState(() {
-                final index = _bookings.indexWhere((b) => b['id'] == booking['id']);
-                if (index != -1) {
-                  _bookings[index]['bookingStatus'] = newStatus;
-                }
-              });
+              FirebaseFirestore.instance
+                  .collection('bookings')
+                  .doc(booking.id)
+                  .update({'status': newStatus});
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(_getText('statusUpdated'))),
@@ -453,85 +401,101 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
   }
 
   Widget _buildBookingList(String status) {
-    final filteredBookings = _getFilteredBookings(status);
-    final authProvider = Provider.of<AuthProvider>(context);
-    
-    if (filteredBookings.isEmpty) {
-      return Center(
-        child: Text(_getText('noBookingsFound')),
-      );
-    }
-    
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredBookings.length,
-      itemBuilder: (context, index) {
-        final booking = filteredBookings[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${_getText('bookingId')}: ${booking['id']}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    BookingStatusBadge(
-                      status: booking['bookingStatus'],
-                      languageCode: authProvider.languageCode,
-                    ),
-                  ],
-                ),
-                const Divider(),
-                _buildInfoRow(Icons.person, _getText('customer'), booking['userName']),
-                _buildInfoRow(Icons.phone, _getText('phone'), booking['userPhone']),
-                _buildInfoRow(Icons.grass, _getText('crop'), booking['crop']),
-                _buildInfoRow(Icons.location_on, _getText('location'), booking['location']),
-                _buildInfoRow(
-                  Icons.date_range,
-                  _getText('dateRange'),
-                  '${booking['startDate']} to ${booking['endDate']}',
-                ),
-                _buildInfoRow(
-                  Icons.inventory_2,
-                  _getText('boxCount'),
-                  booking['boxCount'].toString(),
-                ),
-                _buildInfoRow(
-                  Icons.payments,
-                  _getText('totalAmount'),
-                  '₹${booking['totalAmount']}',
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton.icon(
-                      icon: const Icon(Icons.visibility),
-                      label: Text(_getText('viewDetails')),
-                      onPressed: () => _showBookingDetails(booking),
-                    ),
-                    if (booking['bookingStatus'] == 'active')
-                      TextButton.icon(
-                        icon: const Icon(Icons.edit),
-                        label: Text(_getText('changeStatus')),
-                        onPressed: () => _showStatusChangeDialog(booking),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+    return StreamBuilder<QuerySnapshot>(
+      stream: _getBookingsStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
+        final bookings = snapshot.data?.docs ?? [];
+        final filteredBookings = _getFilteredBookings(bookings, status);
+        final authProvider = Provider.of<AuthProvider>(context);
+
+        if (filteredBookings.isEmpty) {
+          return Center(
+            child: Text(_getText('noBookingsFound')),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: filteredBookings.length,
+          itemBuilder: (context, index) {
+            final booking = filteredBookings[index];
+            final data = booking.data() as Map<String, dynamic>;
+            final userId = data['userId'] ?? '';
+            return FutureBuilder<Map<String, dynamic>?>(
+              future: _fetchUserDetails(userId),
+              builder: (context, userSnapshot) {
+                final user = userSnapshot.data;
+                return ListTile(
+                  title: Text('Booking for: \\${user?['displayName'] ?? user?['email'] ?? 'Unknown'}'),
+                  subtitle: Text('Phone: \\${user?['phone'] ?? 'N/A'}\nEmail: \\${user?['email'] ?? 'N/A'}'),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () async {
+                      await FirebaseFirestore.instance.collection('bookings').doc(booking.id).delete();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Booking deleted')),
+                      );
+                    },
+                  ),
+                  onTap: () => _showBookingDetailsWithUser(booking, user),
+                );
+              },
+            );
+          },
         );
       },
+    );
+  }
+
+  void _showBookingDetailsWithUser(DocumentSnapshot booking, Map<String, dynamic>? user) {
+    final data = booking.data() as Map<String, dynamic>;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${_getText('bookingDetails')}: ${booking.id}'),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildDetailRow(_getText('customer'), user?['displayName'] ?? user?['email'] ?? ''),
+              _buildDetailRow(_getText('phone'), user?['phone'] ?? ''),
+              _buildDetailRow(_getText('email'), user?['email'] ?? ''),
+              _buildDetailRow(_getText('crop'), data['crop'] ?? ''),
+              _buildDetailRow(_getText('location'), data['location'] ?? ''),
+              _buildDetailRow(_getText('dateRange'), '${data['startDate']} to ${data['endDate']}'),
+              _buildDetailRow(_getText('boxCount'), (data['boxCount'] ?? 0).toString()),
+              _buildDetailRow(_getText('totalAmount'), '₹${data['totalAmount']}'),
+              _buildDetailRow(_getText('paymentStatus'), data['paymentStatus'] ?? ''),
+              _buildDetailRow(_getText('bookingStatus'), data['status'] ?? ''),
+              if (data['notes'] != null && data['notes'].isNotEmpty)
+                _buildDetailRow(_getText('notes'), data['notes']),
+              _buildDetailRow(_getText('createdAt'), data['createdAt'] ?? ''),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(_getText('close')),
+          ),
+          if (data['status'] == 'active')
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showStatusChangeDialog(booking);
+              },
+              child: Text(_getText('changeStatus')),
+            ),
+        ],
+      ),
     );
   }
 

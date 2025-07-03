@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -8,6 +7,7 @@ import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../admin/presentation/screens/admin_login_screen.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/custom_button.dart';
+import 'registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,6 +30,22 @@ class _LoginScreenState extends State<LoginScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final selectedLanguage = authProvider.selectedLanguage;
     
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (authProvider.status == AuthStatus.authenticated && mounted) {
+        if (authProvider.isAdmin) {
+          Navigator.of(context).pushReplacementNamed('/admin');
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          );
+        }
+      } else if (authProvider.status == AuthStatus.emailNotVerified && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authProvider.errorMessage)),
+        );
+      }
+    });
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -138,6 +154,46 @@ class _LoginScreenState extends State<LoginScreen> {
                         backgroundColor: AppTheme.primaryColor,
                         textColor: Colors.white,
                       ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RegistrationScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text('Registration Page'),
+                      ),
+                      if (authProvider.status == AuthStatus.emailNotVerified)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16.0),
+                          child: Column(
+                            children: [
+                              const Text(
+                                'Please verify your email and then click below:',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: () async {
+                                  final verified = await authProvider.reloadAndCheckEmailVerified();
+                                  if (verified && mounted) {
+                                    Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(builder: (_) => const DashboardScreen()),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Email not verified yet. Please check your inbox.')),
+                                    );
+                                  }
+                                },
+                                child: const Text('I have verified my email'),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -178,7 +234,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInWithGoogle(BuildContext context) async {
-    print('Google sign-in button pressed'); // Debug print
     setState(() {
       _isLoading = true;
     });
@@ -186,14 +241,13 @@ class _LoginScreenState extends State<LoginScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     try {
       final success = await authProvider.signInWithGoogle();
-      print('Sign-in success: ' + success.toString() + ', context.mounted: ' + context.mounted.toString()); // Debug print
       if (success && context.mounted) {
-        print('Navigating to dashboard...'); // Debug print
+        // Navigate to dashboard
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const DashboardScreen()),
         );
       } else if (context.mounted) {
-        print('Sign-in failed, showing error: ' + authProvider.errorMessage); // Debug print
+        // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(authProvider.errorMessage),
@@ -202,11 +256,9 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 

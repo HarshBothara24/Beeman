@@ -189,6 +189,4 @@ WhatsApp API keys to be secured via Firebase Config.
 
 Use role-based checks for admin in Firestore rules.
 
-
-
 booking screen should show beeboxes like movie ticket selection on bookmyshow

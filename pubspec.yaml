@@ -17,7 +17,7 @@ dependencies:
   # Firebase packages
   firebase_core: ^2.32.0
   # firebase_auth: ^4.15.3  # Commented out as it's causing issues
-  cloud_firestore: ^4.13.6
+  cloud_firestore: ^4.17.5
   # firebase_functions: ^4.5.8  # Commented out as it's causing issues
   # firebase_storage: ^11.5.6  # Commented out as it's causing issues
   

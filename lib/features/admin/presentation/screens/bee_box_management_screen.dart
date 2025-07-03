@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -24,34 +25,6 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
   bool _isEditing = false;
   String? _selectedBoxId;
 
-  // Mock data for bee boxes
-  final List<Map<String, dynamic>> _beeBoxes = [
-    {
-      'id': 'BB001',
-      'location': 'Warehouse A',
-      'status': 'Available',
-      'price': 500.0,
-      'notes': 'New box, excellent condition',
-      'lastMaintenance': '2023-10-15',
-    },
-    {
-      'id': 'BB002',
-      'location': 'Farm B',
-      'status': 'Booked',
-      'price': 500.0,
-      'notes': 'Currently rented to Farmer Ramesh',
-      'lastMaintenance': '2023-09-20',
-    },
-    {
-      'id': 'BB003',
-      'location': 'Warehouse A',
-      'status': 'Maintenance',
-      'price': 450.0,
-      'notes': 'Needs repair on the bottom panel',
-      'lastMaintenance': '2023-11-05',
-    },
-  ];
-
   @override
   void dispose() {
     _boxIdController.dispose();
@@ -70,16 +43,18 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
     _notesController.clear();
     _selectedBoxId = null;
     _isEditing = false;
+    setState(() {});
   }
 
-  void _editBeeBox(Map<String, dynamic> beeBox) {
+  void _editBeeBox(DocumentSnapshot beeBox) {
+    final data = beeBox.data() as Map<String, dynamic>;
     setState(() {
-      _selectedBoxId = beeBox['id'];
-      _boxIdController.text = beeBox['id'];
-      _locationController.text = beeBox['location'];
-      _statusController.text = beeBox['status'];
-      _priceController.text = beeBox['price'].toString();
-      _notesController.text = beeBox['notes'];
+      _selectedBoxId = data['id'];
+      _boxIdController.text = data['id'];
+      _locationController.text = data['location'];
+      _statusController.text = data['status'];
+      _priceController.text = data['price'].toString();
+      _notesController.text = data['notes'];
       _isEditing = true;
     });
   }
@@ -90,10 +65,6 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
         _isLoading = true;
       });
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Update or add bee box in the mock data
       final newBeeBox = {
         'id': _boxIdController.text,
         'location': _locationController.text,
@@ -103,17 +74,19 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
         'lastMaintenance': DateTime.now().toString().substring(0, 10),
       };
 
+      if (_isEditing) {
+        await FirebaseFirestore.instance
+            .collection('bee_boxes')
+            .doc(_selectedBoxId)
+            .update(newBeeBox);
+      } else {
+        await FirebaseFirestore.instance
+            .collection('bee_boxes')
+            .doc(_boxIdController.text)
+            .set(newBeeBox);
+      }
+
       setState(() {
-        if (_isEditing) {
-          // Update existing box
-          final index = _beeBoxes.indexWhere((box) => box['id'] == _selectedBoxId);
-          if (index != -1) {
-            _beeBoxes[index] = newBeeBox;
-          }
-        } else {
-          // Add new box
-          _beeBoxes.add(newBeeBox);
-        }
         _isLoading = false;
       });
 
@@ -121,7 +94,9 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_getText(_isEditing ? 'beeBoxUpdated' : 'beeBoxAdded'))),
+          SnackBar(
+              content: Text(
+                  _getText(_isEditing ? 'beeBoxUpdated' : 'beeBoxAdded'))),
         );
       }
     }
@@ -139,10 +114,11 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
             child: Text(_getText('cancel')),
           ),
           TextButton(
-            onPressed: () {
-              setState(() {
-                _beeBoxes.removeWhere((box) => box['id'] == id);
-              });
+            onPressed: () async {
+              await FirebaseFirestore.instance
+                  .collection('bee_boxes')
+                  .doc(id)
+                  .delete();
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(_getText('beeBoxDeleted'))),
@@ -452,64 +428,87 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
             const SizedBox(height: 16),
             // List of bee boxes
             Expanded(
-              child: ListView.builder(
-                itemCount: _beeBoxes.length,
-                itemBuilder: (context, index) {
-                  final beeBox = _beeBoxes[index];
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      title: Text(
-                        '${beeBox['id']} - ${beeBox['location']}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              _buildStatusChip(beeBox['status']),
-                              const SizedBox(width: 8),
-                              Text('₹${beeBox['price']}/day'),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text('${_getText('lastMaintenance')}: ${beeBox['lastMaintenance']}'),
-                          if (beeBox['notes'].isNotEmpty) ...[  
-                            const SizedBox(height: 4),
-                            Text(
-                              beeBox['notes'],
-                              style: TextStyle(color: Colors.grey[600]),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: AppTheme.primaryColor),
-                            onPressed: () => _editBeeBox(beeBox),
-                            tooltip: _getText('edit'),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteBeeBox(beeBox['id']),
-                            tooltip: _getText('delete'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('bee_boxes').snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+
+                  final beeBoxes = snapshot.data?.docs ?? [];
+
+                  if (beeBoxes.isEmpty) {
+                    return Center(child: Text(_getText('noBeeBoxesFound')));
+                  }
+
+                  return _buildBeeBoxList(beeBoxes);
                 },
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBeeBoxList(List<DocumentSnapshot> beeBoxes) {
+    return ListView.builder(
+      itemCount: beeBoxes.length,
+      itemBuilder: (context, index) {
+        final beeBox = beeBoxes[index];
+        final data = beeBox.data() as Map<String, dynamic>;
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            title: Text(
+              '${data['id']} - ${data['location']}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    _buildStatusChip(data['status'] ?? ''),
+                    const SizedBox(width: 8),
+                    Text('₹${data['price']}/day'),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('${_getText('lastMaintenance')}: ${data['lastMaintenance']}'),
+                if (data['notes'] != null && data['notes'].isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    data['notes'],
+                    style: TextStyle(color: Colors.grey[600]),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: AppTheme.primaryColor),
+                  onPressed: () => _editBeeBox(beeBox),
+                  tooltip: _getText('edit'),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () => _deleteBeeBox(beeBox.id),
+                  tooltip: _getText('delete'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -528,7 +527,6 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
       default:
         chipColor = Colors.grey;
     }
-
     String statusText;
     switch (status) {
       case 'Available':
@@ -543,7 +541,6 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
       default:
         statusText = status;
     }
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -551,10 +548,7 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
         border: Border.all(color: chipColor),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        statusText,
-        style: TextStyle(color: chipColor, fontSize: 12),
-      ),
+      child: Text(statusText, style: TextStyle(color: chipColor, fontSize: 12)),
     );
   }
 }

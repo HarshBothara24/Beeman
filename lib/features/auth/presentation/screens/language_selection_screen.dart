@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
-import 'login_screen.dart';
 import 'registration_screen.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {

@@ -3,10 +3,11 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/app_constants.dart';
 
-enum AuthStatus { initial, authenticated, unauthenticated, loading, error }
+enum AuthStatus { initial, authenticated, unauthenticated, loading, error, emailNotVerified }
 
 class AuthProvider extends ChangeNotifier {
   final fb_auth.FirebaseAuth _firebaseAuth;
@@ -60,7 +61,6 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> signInWithEmailAndPassword(String email, String password) async {
     _status = AuthStatus.loading;
     notifyListeners();
-    
     try {
       final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
@@ -68,6 +68,17 @@ class AuthProvider extends ChangeNotifier {
       );
       _user = userCredential.user;
       await _checkIfAdmin();
+      const adminUid = 'jwXO9LX5g0eA387930lBQx4keie2';
+      if (_user != null && !_user!.emailVerified && _user!.uid != adminUid) {
+        await _user!.sendEmailVerification();
+        _status = AuthStatus.emailNotVerified;
+        _errorMessage = 'Please verify your email. A verification link has been sent.';
+        notifyListeners();
+        return false;
+      }
+      if (_user != null) {
+        await _createUserInFirestore(_user!);
+      }
       _status = AuthStatus.authenticated;
       notifyListeners();
       return true;
@@ -77,6 +88,18 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+  
+  Future<bool> reloadAndCheckEmailVerified() async {
+    if (_user == null) return false;
+    await _user!.reload();
+    _user = _firebaseAuth.currentUser;
+    if (_user != null && _user!.emailVerified) {
+      _status = AuthStatus.authenticated;
+      notifyListeners();
+      return true;
+    }
+    return false;
   }
   
   // Sign in with Google
@@ -90,7 +113,7 @@ class AuthProvider extends ChangeNotifier {
         print('Running on web'); // Debug print
         // Use interactive sign-in for web (FedCM compatible)
         final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-        print('googleUser (web): ' + googleUser.toString()); // Debug print
+        print('googleUser (web): $googleUser'); // Debug print
         if (googleUser != null) {
           final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
           final fb_auth.OAuthCredential credential = fb_auth.GoogleAuthProvider.credential(
@@ -100,9 +123,10 @@ class AuthProvider extends ChangeNotifier {
           final fb_auth.UserCredential userCredential =
               await _firebaseAuth.signInWithCredential(credential);
           _user = userCredential.user;
-          print('Firebase user (web): ' + _user.toString()); // Debug print
+          print('Firebase user (web): $_user'); // Debug print
           if (_user != null) {
             await _checkIfAdmin();
+            await _createUserInFirestore(_user!);
             _status = AuthStatus.authenticated;
             notifyListeners();
             return true;
@@ -119,7 +143,7 @@ class AuthProvider extends ChangeNotifier {
       } else {
         print('Running on mobile/desktop'); // Debug print
         final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-        print('googleUser (mobile): ' + googleUser.toString()); // Debug print
+        print('googleUser (mobile): $googleUser'); // Debug print
         if (googleUser == null) {
           print('User cancelled Google sign-in'); // Debug print
           _status = AuthStatus.unauthenticated;
@@ -134,9 +158,10 @@ class AuthProvider extends ChangeNotifier {
         final fb_auth.UserCredential userCredential =
             await _firebaseAuth.signInWithCredential(credential);
         _user = userCredential.user;
-        print('Firebase user (mobile): ' + _user.toString()); // Debug print
+        print('Firebase user (mobile): $_user'); // Debug print
         if (_user != null) {
           await _checkIfAdmin();
+          await _createUserInFirestore(_user!);
           _status = AuthStatus.authenticated;
           notifyListeners();
           return true;
@@ -145,7 +170,7 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      print('Error in signInWithGoogle: ' + e.toString()); // Debug print
+      print('Error in signInWithGoogle: $e'); // Debug print
       _status = AuthStatus.error;
       _errorMessage = e.toString();
       notifyListeners();
@@ -175,7 +200,8 @@ class AuthProvider extends ChangeNotifier {
   // Check if user is admin
   Future<void> _checkIfAdmin() async {
     // For demo purposes
-    _isAdmin = _user?.email == 'admin@beeman.com';
+    const adminUid = 'jwXO9LX5g0eA387930lBQx4keie2';
+    _isAdmin = _user?.email == 'admin@beeman.com' || _user?.uid == adminUid;
   }
   
   // Set language preference
@@ -212,7 +238,11 @@ class AuthProvider extends ChangeNotifier {
     await auth.verifyPhoneNumber(
       phoneNumber: phoneNumber,
       verificationCompleted: (fb_auth.PhoneAuthCredential credential) async {
-        await auth.signInWithCredential(credential);
+        final userCredential = await auth.signInWithCredential(credential);
+        final user = userCredential.user;
+        if (user != null) {
+          await _createUserInFirestore(user);
+        }
         // Auth state change will be picked up by the listener
       },
       verificationFailed: (fb_auth.FirebaseAuthException e) {
@@ -231,17 +261,36 @@ class AuthProvider extends ChangeNotifier {
           verificationId: verificationId,
           smsCode: smsCode,
         );
-        await auth.signInWithCredential(credential);
+        final userCredential = await auth.signInWithCredential(credential);
+        final user = userCredential.user;
+        if (user != null) {
+          await _createUserInFirestore(user);
+        }
         // Auth state change will be picked up by the listener
       },
       codeAutoRetrievalTimeout: (String verificationId) {},
     );
   }
+
+  // Helper to create user in Firestore
+  Future<void> _createUserInFirestore(fb_auth.User user) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'email': user.email,
+        'displayName': user.displayName,
+        'photoURL': user.photoURL,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Firestore user creation error: $e');
+    }
+  }
 }
 
 // Dialog for entering phone number
 class PhoneNumberDialog extends StatefulWidget {
-  const PhoneNumberDialog({Key? key}) : super(key: key);
+  const PhoneNumberDialog({super.key});
 
   @override
   State<PhoneNumberDialog> createState() => _PhoneNumberDialogState();
@@ -274,7 +323,7 @@ class _PhoneNumberDialogState extends State<PhoneNumberDialog> {
 
 // Dialog for entering OTP
 class OTPDialog extends StatefulWidget {
-  const OTPDialog({Key? key}) : super(key: key);
+  const OTPDialog({super.key});
 
   @override
   State<OTPDialog> createState() => _OTPDialogState();
