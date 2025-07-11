@@ -1,6 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:excel/excel.dart' as excel;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
 
 // Update the import path for AuthProvider
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -313,73 +318,170 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_getText('userManagement')),
-      ),
-      body: Column(
-        children: [
-          // Search and filter bar
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                // Search field
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: _getText('search'),
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                setState(() {
-                                  _searchController.clear();
-                                  _searchQuery = '';
-                                });
-                              },
-                            )
-                          : null,
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 16),
-                // Filter dropdown
-                DropdownButton<String>(
-                  value: _selectedFilter,
-                  hint: Text(_getText('filter')),
-                  items: [
-                    DropdownMenuItem(value: 'All', child: Text(_getText('all'))),
-                    DropdownMenuItem(value: 'Active', child: Text(_getText('active'))),
-                    DropdownMenuItem(value: 'Inactive', child: Text(_getText('inactive'))),
-                    DropdownMenuItem(value: 'Blocked', child: Text(_getText('blocked'))),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedFilter = value;
-                      });
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-          // User list
-          Expanded(
-            child: _buildUserList(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Export to Excel',
+            onPressed: () async {
+              await _exportUsersToExcel();
+            },
           ),
         ],
       ),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'User Management',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: _getText('search'),
+                          prefixIcon: const Icon(Icons.search),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: _selectedFilter,
+                      items: [
+                        DropdownMenuItem(value: 'All', child: Text(l10n('All'))),
+                        DropdownMenuItem(value: 'Active', child: Text(l10n('Active'))),
+                        DropdownMenuItem(value: 'Inactive', child: Text(l10n('Inactive'))),
+                      ],
+                      onChanged: (v) => setState(() => _selectedFilter = v ?? 'All'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _getUsersStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final users = snapshot.data?.docs ?? [];
+                  final filteredUsers = _getFilteredUsers(users);
+                  if (filteredUsers.isEmpty) {
+                    return Center(child: Text(l10n('No users found.')));
+                  }
+                  return ListView.builder(
+                    itemCount: filteredUsers.length,
+                    itemBuilder: (context, index) {
+                      final user = filteredUsers[index];
+                      final data = user.data() as Map<String, dynamic>;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                              child: Icon(Icons.person, color: AppTheme.primaryColor),
+                            ),
+                            title: Text(data['name'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text(data['email'] ?? ''),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, color: AppTheme.primaryColor),
+                                  onPressed: () => _showChangeStatusDialog(user),
+                                  tooltip: l10n('Edit'),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () async {
+                                    await FirebaseFirestore.instance.collection('users').doc(user.id).delete();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(l10n('User deleted'))),
+                                    );
+                                  },
+                                  tooltip: l10n('Delete'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Future<void> _exportUsersToExcel() async {
+    final snapshot = await _getUsersStream().first;
+    final users = snapshot.docs;
+    if (users.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No users to export.')),
+      );
+      return;
+    }
+    final workbook = excel.Excel.createExcel();
+    final sheet = workbook['Users'];
+    sheet.appendRow([
+      'User ID', 'Name', 'Email', 'Phone', 'Location', 'Status'
+    ]);
+    for (final user in users) {
+      final data = user.data() as Map<String, dynamic>;
+      sheet.appendRow([
+        user.id,
+        data['name'] ?? '',
+        data['email'] ?? '',
+        data['phone'] ?? '',
+        data['location'] ?? '',
+        data['status'] ?? '',
+      ]);
+    }
+    final fileBytes = workbook.encode();
+    if (kIsWeb) {
+      final blob = html.Blob([fileBytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', 'users.xlsx')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/users.xlsx');
+      await file.writeAsBytes(fileBytes!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Exported to ${file.path}')),
+      );
+    }
   }
 
   Widget _buildUserList() {
@@ -466,7 +568,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        status,
+        l10n(status),
         style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
       ),
     );
@@ -499,3 +601,5 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 }
+
+String l10n(String text) => text; // Placeholder for localization

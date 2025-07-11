@@ -9,6 +9,9 @@ import '../screens/bee_box_management_screen.dart';
 import '../screens/booking_management_screen.dart';
 import '../screens/payment_management_screen.dart';
 import '../screens/user_management_screen.dart';
+import '../screens/analytics_dashboard_screen.dart';
+import '../screens/message_template_management_screen.dart';
+import '../screens/periodic_alert_scheduler_screen.dart';
 
 class AdminDrawer extends StatelessWidget {
   const AdminDrawer({super.key});
@@ -106,6 +109,36 @@ class AdminDrawer extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const PaymentManagementScreen()),
+              );
+            },
+          ),
+          // Analytics Dashboard
+          ListTile(
+            leading: const Icon(Icons.bar_chart),
+            title: const Text('Analytics Dashboard'),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AnalyticsDashboardScreen()),
+              );
+            },
+          ),
+          // Message Templates
+          ListTile(
+            leading: const Icon(Icons.message),
+            title: const Text('Message Templates'),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const MessageTemplateManagementScreen()),
+              );
+            },
+          ),
+          // Periodic Alert Scheduler
+          ListTile(
+            leading: const Icon(Icons.schedule),
+            title: const Text('Periodic Alert Scheduler'),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PeriodicAlertSchedulerScreen()),
               );
             },
           ),

@@ -7,15 +7,22 @@ class BookingService {
   Future<void> createBooking(BookingModel booking) async {
     try {
       final docRef = await _firestore.collection('bookings').add(booking.toFirestore());
-      print('Booking created with ID: ${docRef.id}'); // Debug print
+      print('BookingService: Booking created with ID: ${docRef.id}');
+      print('BookingService: Booking userId: ${booking.userId}');
     } catch (e) {
-      print('Error creating booking: $e'); // Debug print
+      print('BookingService: Error creating booking: $e');
       rethrow;
     }
   }
 
   Stream<List<BookingModel>> getUserBookings(String userId) {
-    print('Fetching bookings for user: $userId'); // Debug print
+    print('BookingService: Fetching bookings for user: $userId');
+    
+    if (userId.isEmpty) {
+      print('BookingService: userId is empty, returning empty stream');
+      return Stream.value(<BookingModel>[]);
+    }
+    
     try {
       return _firestore
           .collection('bookings')
@@ -23,28 +30,44 @@ class BookingService {
           .orderBy('createdAt', descending: true)
           .snapshots()
           .map((snapshot) {
-            print('Received ${snapshot.docs.length} bookings'); // Debug print
-            return snapshot.docs
-                .map((doc) {
-                  print('Processing booking ${doc.id}'); // Debug print
-                  return BookingModel.fromFirestore(doc);
-                })
-                .toList();
+            print('BookingService: Received ${snapshot.docs.length} bookings from Firestore');
+            
+            final List<BookingModel> bookings = [];
+            for (var doc in snapshot.docs) {
+              try {
+                print('BookingService: Processing booking ${doc.id}');
+                final booking = BookingModel.fromFirestore(doc);
+                print('BookingService: Booking ${doc.id} userId: ${booking.userId}');
+                bookings.add(booking);
+              } catch (e) {
+                print('BookingService: Error processing booking ${doc.id}: $e');
+                print('BookingService: Document data: ${doc.data()}');
+              }
+            }
+            
+            print('BookingService: Successfully processed ${bookings.length} bookings');
+            return bookings;
           })
           .handleError((error) {
-            print('Error in stream: $error'); // Debug print
+            print('BookingService: Error in stream: $error');
             return <BookingModel>[];
           });
     } catch (e) {
-      print('Exception in getUserBookings: $e'); // Debug print
+      print('BookingService: Exception in getUserBookings: $e');
       return Stream.value(<BookingModel>[]);
     }
   }
 
   Future<void> updateBookingStatus(String bookingId, String status) async {
-    await _firestore
-        .collection('bookings')
-        .doc(bookingId)
-        .update({'status': status});
+    try {
+      await _firestore
+          .collection('bookings')
+          .doc(bookingId)
+          .update({'status': status});
+      print('BookingService: Updated booking $bookingId status to $status');
+    } catch (e) {
+      print('BookingService: Error updating booking status: $e');
+      rethrow;
+    }
   }
 }

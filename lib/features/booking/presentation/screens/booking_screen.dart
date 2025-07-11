@@ -8,9 +8,11 @@ import '../../../payment/presentation/screens/payment_screen.dart';
 import '../widgets/bee_box_counter.dart';
 import '../widgets/date_range_picker.dart';
 import '../providers/booking_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BookingScreen extends StatefulWidget {
-  const BookingScreen({super.key});
+  final Map<String, List<int>>? selectedBoxes;
+  const BookingScreen({super.key, this.selectedBoxes});
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
@@ -26,16 +28,41 @@ class _BookingScreenState extends State<BookingScreen> {
   DateTime? _startDate;
   DateTime? _endDate;
   int _numberOfBoxes = 1;
+  bool _profileLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Initialize from provider after build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
-      setState(() {
-        _numberOfBoxes = bookingProvider.selectedBoxes.length;
-      });
+      // If selectedBoxes were passed, flatten and set in provider
+      if (widget.selectedBoxes != null && widget.selectedBoxes!.isNotEmpty) {
+        final flatSet = widget.selectedBoxes!.entries
+            .expand((e) => e.value.map((idx) => int.tryParse(e.key) != null ? int.parse(e.key) * 1000 + idx : idx))
+            .toSet();
+        bookingProvider.setBookingDetails(flatSet, 0); // Amount will be set later
+        setState(() {
+          _numberOfBoxes = flatSet.length;
+        });
+      } else {
+        setState(() {
+          _numberOfBoxes = bookingProvider.selectedBoxes.length;
+        });
+      }
+      // Always fetch user profile data for phone and address from Firestore
+      setState(() { _profileLoading = true; });
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final userData = doc.data();
+        if (userData != null) {
+          _phoneController.text = userData['phone'] ?? user.phoneNumber ?? '';
+          _locationController.text = userData['address'] ?? '';
+        } else {
+          _phoneController.text = user.phoneNumber ?? '';
+        }
+      }
+      setState(() { _profileLoading = false; });
     });
   }
 
@@ -48,15 +75,15 @@ class _BookingScreenState extends State<BookingScreen> {
     super.dispose();
   }
 
-  Widget _buildSelectedBoxesCard(String languageCode) {
+  Widget _buildSelectedBoxesSummary() {
     final bookingProvider = Provider.of<BookingProvider>(context);
     final selectedBoxes = bookingProvider.selectedBoxes;
-
+    // Group by boxTypeId (if possible)
+    // For now, just show as a comma-separated list
+    final boxList = selectedBoxes.toList()..sort();
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -66,39 +93,19 @@ class _BookingScreenState extends State<BookingScreen> {
               children: [
                 const Icon(Icons.hive, color: AppTheme.primaryColor),
                 const SizedBox(width: 8),
-                Text(
-                  'Selected Boxes',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
+                const Text(
+                  'Selected Bee Boxes',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: selectedBoxes.map((boxNumber) {
-                return Chip(
-                  label: Text('Box ${boxNumber + 1}'),
-                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                  labelStyle: TextStyle(
-                    color: AppTheme.primaryColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                );
-              }).toList(),
+            const SizedBox(height: 12),
+            Text(
+              boxList.isEmpty ? 'No boxes selected.' : boxList.map((e) => 'Box ${e + 1}').join(', '),
+              style: const TextStyle(fontSize: 16, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Total Selected: ${selectedBoxes.length} boxes',
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-              ),
-            ),
+            Text('Total: ${boxList.length} boxes', style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary)),
           ],
         ),
       ),
@@ -110,8 +117,6 @@ class _BookingScreenState extends State<BookingScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
     final bookingProvider = Provider.of<BookingProvider>(context);
     final selectedLanguage = authProvider.selectedLanguage;
-
-    // Initialize number of boxes from provider
     _numberOfBoxes = bookingProvider.selectedBoxes.length;
 
     return Scaffold(
@@ -120,208 +125,131 @@ class _BookingScreenState extends State<BookingScreen> {
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Selected Boxes Card
-                  _buildSelectedBoxesCard(selectedLanguage),
-                  const SizedBox(height: 24),
-                  // Booking info card
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.info,
-                                color: AppTheme.primaryColor,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                _getBookingInfoText(selectedLanguage),
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            ],
+      body: _profileLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SafeArea(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Section: Selected Boxes Summary
+                        _buildSelectedBoxesSummary(),
+                        const SizedBox(height: 24),
+                        // Section: Booking Info
+                        const Text(
+                          'Booking Details',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                        ),
+                        const SizedBox(height: 12),
+                        // Crop field
+                        TextFormField(
+                          controller: _cropController,
+                          decoration: InputDecoration(
+                            labelText: _getCropLabelText(selectedLanguage),
+                            hintText: _getCropHintText(selectedLanguage),
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.grass),
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _getBookingDescriptionText(selectedLanguage),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.textSecondary,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return _getRequiredFieldText(selectedLanguage);
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        // Location field (from profile)
+                        TextFormField(
+                          controller: _locationController,
+                          decoration: InputDecoration(
+                            labelText: '${_getLocationLabelText(selectedLanguage)} (from profile)',
+                            hintText: _getLocationHintText(selectedLanguage),
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.location_on),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text('You can update your address for this booking. To update your profile address, go to Profile.', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                        const SizedBox(height: 16),
+                        // Phone field (from profile)
+                        TextFormField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          decoration: InputDecoration(
+                            labelText: '${_getPhoneLabelText(selectedLanguage)} (from profile)',
+                            hintText: _getPhoneHintText(selectedLanguage),
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.phone),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text('You can update your phone for this booking. To update your profile phone, go to Profile.', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                        const SizedBox(height: 24),
+                        // Date range picker
+                        Text(
+                          _getSelectDatesText(selectedLanguage),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                        ),
+                        const SizedBox(height: 8),
+                        DateRangePicker(
+                          onDateRangeSelected: (startDate, endDate) {
+                            setState(() {
+                              _startDate = startDate;
+                              _endDate = endDate;
+                            });
+                          },
+                          selectedLanguage: selectedLanguage,
+                        ),
+                        const SizedBox(height: 24),
+                        // Notes field
+                        TextFormField(
+                          controller: _notesController,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            labelText: _getNotesLabelText(selectedLanguage),
+                            hintText: _getNotesHintText(selectedLanguage),
+                            border: const OutlineInputBorder(),
+                            alignLabelWithHint: true,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        // Booking summary
+                        if (_startDate != null && _endDate != null)
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                            child: _buildBookingSummary(selectedLanguage),
+                          ),
+                        const SizedBox(height: 24),
+                        // Book now button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: () => _validateAndProceed(selectedLanguage),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              _getBookNowText(selectedLanguage),
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Booking form
-                  Text(
-                    _getBookingDetailsText(selectedLanguage),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Crop field
-                  TextFormField(
-                    controller: _cropController,
-                    decoration: InputDecoration(
-                      labelText: _getCropLabelText(selectedLanguage),
-                      hintText: _getCropHintText(selectedLanguage),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.grass),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return _getRequiredFieldText(selectedLanguage);
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  // Location field
-                  TextFormField(
-                    controller: _locationController,
-                    decoration: InputDecoration(
-                      labelText: _getLocationLabelText(selectedLanguage),
-                      hintText: _getLocationHintText(selectedLanguage),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.location_on),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return _getRequiredFieldText(selectedLanguage);
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  // Phone field
-                  TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: _getPhoneLabelText(selectedLanguage),
-                      hintText: _getPhoneHintText(selectedLanguage),
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.phone),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return _getRequiredFieldText(selectedLanguage);
-                      }
-                      if (value.length != 10) {
-                        return _getInvalidPhoneText(selectedLanguage);
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  // Date range picker
-                  Text(
-                    _getSelectDatesText(selectedLanguage),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  DateRangePicker(
-                    onDateRangeSelected: (startDate, endDate) {
-                      setState(() {
-                        _startDate = startDate;
-                        _endDate = endDate;
-                      });
-                    },
-                    selectedLanguage: selectedLanguage,
-                  ),
-                  const SizedBox(height: 24),
-                  // Number of bee boxes
-                  Text(
-                    _getSelectBoxesText(selectedLanguage),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  BeeBoxCounter(
-                    initialValue: _numberOfBoxes,
-                    onChanged: (value) {
-                      setState(() {
-                        _numberOfBoxes = value;
-                      });
-                    },
-                    selectedLanguage: selectedLanguage,
-                  ),
-                  const SizedBox(height: 24),
-                  // Notes field
-                  TextFormField(
-                    controller: _notesController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      labelText: _getNotesLabelText(selectedLanguage),
-                      hintText: _getNotesHintText(selectedLanguage),
-                      border: const OutlineInputBorder(),
-                      alignLabelWithHint: true,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Booking summary
-                  if (_startDate != null && _endDate != null)
-                    _buildBookingSummary(selectedLanguage),
-                  const SizedBox(height: 24),
-                  // Book now button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () => _validateAndProceed(selectedLanguage),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ),
-                      child: Text(
-                        _getBookNowText(selectedLanguage),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 

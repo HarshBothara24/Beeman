@@ -67,5 +67,32 @@
 
   <script src="flutter_bootstrap.js" async></script>
   <div id="gsi_button"></div>
+
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    function openRazorpay(options) {
+      options.handler = function (response) {
+        window.postMessage(
+          JSON.stringify({
+            type: 'razorpay_payment_success',
+            payload: response
+          }),
+          '*'
+        );
+      };
+      options.modal = {
+        ondismiss: function () {
+          window.postMessage(
+            JSON.stringify({
+              type: 'razorpay_payment_cancelled'
+            }),
+            '*'
+          );
+        }
+      };
+      var rzp = new Razorpay(options);
+      rzp.open();
+    }
+  </script>
 </body>
 </html>

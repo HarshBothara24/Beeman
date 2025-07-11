@@ -47,134 +47,65 @@ class _SupportScreenState extends State<SupportScreen> {
         title: const Text('Support'),
         backgroundColor: AppTheme.primaryColor,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Contact Support',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Fill out the form below and our team will get back to you as soon as possible.',
-              style: TextStyle(
-                fontSize: 16,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Full Name',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person_outline),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Support & Help',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                ),
+                const SizedBox(height: 16),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.support_agent, color: AppTheme.primaryColor, size: 32),
+                              const SizedBox(width: 12),
+                              const Text(
+                                'Contact Support',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'For any help or queries, contact us at:',
+                            style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'support@beeman.com',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                          ),
+                        ],
+                      ),
                     ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your name';
-                      }
-                      return null;
-                    },
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email Address',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your email';
-                      }
-                      if (!value.contains('@') || !value.contains('.')) {
-                        return 'Please enter a valid email address';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _subjectController,
-                    decoration: const InputDecoration(
-                      labelText: 'Subject',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.subject),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a subject';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      labelText: 'Message',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.message_outlined),
-                      alignLabelWithHint: true,
-                    ),
-                    maxLines: 5,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter your message';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  CustomButton(
-                    text: 'Submit',
-                    onPressed: _submitForm,
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 32),
+                // FAQ Section
+                const Text(
+                  'Frequently Asked Questions',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                ),
+                const SizedBox(height: 12),
+                // Add FAQ items here as needed
+              ],
             ),
-            const SizedBox(height: 32),
-            Text(
-              'Other Ways to Reach Us',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildContactCard(
-              icon: Icons.phone_outlined,
-              title: 'Phone',
-              content: '+91 1234567890',
-            ),
-            const SizedBox(height: 12),
-            _buildContactCard(
-              icon: Icons.email_outlined,
-              title: 'Email',
-              content: 'support@beeman.com',
-            ),
-            const SizedBox(height: 12),
-            _buildContactCard(
-              icon: Icons.location_on_outlined,
-              title: 'Address',
-              content: '123 Bee Street, Honey Gardens, Maharashtra, India',
-            ),
-          ],
+          ),
         ),
       ),
     );

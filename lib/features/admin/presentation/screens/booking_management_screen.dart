@@ -1,11 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:excel/excel.dart' as excel;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
 
 // Update the import path for AuthProvider
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../booking/presentation/widgets/booking_status_badge.dart';
+import '../../../../core/utils/whatsapp_messaging.dart';
 
 class BookingManagementScreen extends StatefulWidget {
   const BookingManagementScreen({super.key});
@@ -96,6 +102,23 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(_getText('close')),
+          ),
+          TextButton(
+            onPressed: () async {
+              final customMessage = await _showCustomMessageDialog(context);
+              if (customMessage != null && customMessage.trim().isNotEmpty) {
+                final sent = await WhatsAppMessaging.sendCustomMessage(
+                  phoneNumber: data['userPhone'] ?? '',
+                  message: customMessage.trim(),
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(sent ? 'WhatsApp message sent!' : 'Failed to send WhatsApp message.')),
+                  );
+                }
+              }
+            },
+            child: const Text('Send WhatsApp Message'),
           ),
           if (data['status'] == 'active')
             TextButton(
@@ -352,54 +375,131 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
             Tab(text: _getText('cancelled')),
           ],
         ),
-      ),
-      body: Column(
-        children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: _getText('search'),
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _searchController.clear();
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-            ),
-          ),
-          // Tab content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildBookingList('active'),
-                _buildBookingList('completed'),
-                _buildBookingList('cancelled'),
-              ],
-            ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Export to Excel',
+            onPressed: () async {
+              await _exportBookingsToExcel();
+            },
           ),
         ],
       ),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Booking Management',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: _getText('search'),
+                    prefixIcon: const Icon(Icons.search),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              setState(() {
+                                _searchController.clear();
+                                _searchQuery = '';
+                              });
+                            },
+                          )
+                        : null,
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            TabBar(
+              controller: _tabController,
+              tabs: [
+                Tab(icon: Icon(Icons.check_circle, color: Colors.green), text: _getText('active')),
+                Tab(icon: Icon(Icons.done_all, color: Colors.blue), text: _getText('completed')),
+                Tab(icon: Icon(Icons.cancel, color: Colors.red), text: _getText('cancelled')),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildBookingList('active'),
+                  _buildBookingList('completed'),
+                  _buildBookingList('cancelled'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Future<void> _exportBookingsToExcel() async {
+    final snapshot = await _getBookingsStream().first;
+    final bookings = snapshot.docs;
+    if (bookings.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No bookings to export.')),
+      );
+      return;
+    }
+    final workbook = excel.Excel.createExcel();
+    final sheet = workbook['Bookings'];
+    sheet.appendRow([
+      'Booking ID', 'User Name', 'Phone', 'Crop', 'Location', 'Start Date', 'End Date', 'Box Count', 'Total Amount', 'Deposit', 'Status', 'Created At'
+    ]);
+    for (final booking in bookings) {
+      final data = booking.data() as Map<String, dynamic>;
+      sheet.appendRow([
+        booking.id,
+        data['userName'] ?? '',
+        data['userPhone'] ?? '',
+        data['crop'] ?? '',
+        data['location'] ?? '',
+        data['startDate'] ?? '',
+        data['endDate'] ?? '',
+        data['boxCount'] ?? '',
+        data['totalAmount'] ?? '',
+        data['depositAmount'] ?? '',
+        data['status'] ?? '',
+        data['createdAt'] ?? '',
+      ]);
+    }
+    final fileBytes = workbook.encode();
+    if (kIsWeb) {
+      final blob = html.Blob([fileBytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', 'bookings.xlsx')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/bookings.xlsx');
+      await file.writeAsBytes(fileBytes!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Exported to ${file.path}')),
+      );
+    }
   }
 
   Widget _buildBookingList(String status) {
@@ -419,7 +519,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
 
         if (filteredBookings.isEmpty) {
           return Center(
-            child: Text(_getText('noBookingsFound')),
+            child: Text(l10n('No bookings found')),
           );
         }
 
@@ -435,14 +535,14 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
               builder: (context, userSnapshot) {
                 final user = userSnapshot.data;
                 return ListTile(
-                  title: Text('Booking for: \\${user?['displayName'] ?? user?['email'] ?? 'Unknown'}'),
-                  subtitle: Text('Phone: \\${user?['phone'] ?? 'N/A'}\nEmail: \\${user?['email'] ?? 'N/A'}'),
+                  title: Text('Booking for: ${user?['displayName'] ?? user?['email'] ?? 'Unknown'}'),
+                  subtitle: Text('Phone: ${user?['phone'] ?? 'N/A'}\nEmail: ${user?['email'] ?? 'N/A'}'),
                   trailing: IconButton(
                     icon: Icon(Icons.delete, color: Colors.red),
                     onPressed: () async {
                       await FirebaseFirestore.instance.collection('bookings').doc(booking.id).delete();
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Booking deleted')),
+                        SnackBar(content: Text(l10n('Booking deleted'))),
                       );
                     },
                   ),
@@ -458,6 +558,31 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
 
   void _showBookingDetailsWithUser(DocumentSnapshot booking, Map<String, dynamic>? user) {
     final data = booking.data() as Map<String, dynamic>;
+    // Fallbacks for user info
+    final displayName = user?['displayName'] ?? data['userName'] ?? user?['email'] ?? 'N/A';
+    final phone = user?['phone'] ?? data['userPhone'] ?? 'N/A';
+    final email = user?['email'] ?? 'N/A';
+    final crop = data['crop'] ?? 'N/A';
+    final location = data['location'] ?? 'N/A';
+    String formatDate(dynamic value) {
+      if (value == null) return 'N/A';
+      if (value is String) return value.split(' ').first;
+      if (value is Timestamp) return value.toDate().toString().split(' ').first;
+      return value.toString();
+    }
+    final startDate = formatDate(data['startDate']);
+    final endDate = formatDate(data['endDate']);
+    final boxCount = (data['boxCount'] ?? 0).toString();
+    final boxNumbers = (data['boxNumbers'] != null && (data['boxNumbers'] as List).isNotEmpty)
+      ? (data['boxNumbers'] as List).join(', ')
+      : null;
+    final totalAmount = data['totalAmount'] != null ? '₹${data['totalAmount']}' : 'N/A';
+    final depositAmount = data['depositAmount'] != null ? '₹${data['depositAmount']}' : null;
+    final paymentStatus = data['paymentStatus'] ?? 'N/A';
+    final bookingStatus = data['status'] ?? 'N/A';
+    final notes = data['notes'] ?? '';
+    final createdAt = formatDate(data['createdAt']);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -467,19 +592,20 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow(_getText('customer'), user?['displayName'] ?? user?['email'] ?? ''),
-              _buildDetailRow(_getText('phone'), user?['phone'] ?? ''),
-              _buildDetailRow(_getText('email'), user?['email'] ?? ''),
-              _buildDetailRow(_getText('crop'), data['crop'] ?? ''),
-              _buildDetailRow(_getText('location'), data['location'] ?? ''),
-              _buildDetailRow(_getText('dateRange'), '${data['startDate']} to ${data['endDate']}'),
-              _buildDetailRow(_getText('boxCount'), (data['boxCount'] ?? 0).toString()),
-              _buildDetailRow(_getText('totalAmount'), '₹${data['totalAmount']}'),
-              _buildDetailRow(_getText('paymentStatus'), data['paymentStatus'] ?? ''),
-              _buildDetailRow(_getText('bookingStatus'), data['status'] ?? ''),
-              if (data['notes'] != null && data['notes'].isNotEmpty)
-                _buildDetailRow(_getText('notes'), data['notes']),
-              _buildDetailRow(_getText('createdAt'), data['createdAt'] ?? ''),
+              _buildDetailRow(_getText('customer'), displayName),
+              _buildDetailRow(_getText('phone'), phone),
+              _buildDetailRow(_getText('email'), email),
+              _buildDetailRow(_getText('crop'), crop),
+              _buildDetailRow(_getText('location'), location),
+              _buildDetailRow(_getText('dateRange'), '$startDate to $endDate'),
+              _buildDetailRow(_getText('boxCount'), boxCount),
+              if (boxNumbers != null) _buildDetailRow('Box Numbers', boxNumbers),
+              _buildDetailRow(_getText('totalAmount'), totalAmount),
+              if (depositAmount != null) _buildDetailRow('Deposit', depositAmount),
+              _buildDetailRow(_getText('paymentStatus'), paymentStatus),
+              _buildDetailRow(_getText('bookingStatus'), bookingStatus),
+              if (notes.isNotEmpty) _buildDetailRow(_getText('notes'), notes),
+              _buildDetailRow(_getText('createdAt'), createdAt),
             ],
           ),
         ),
@@ -488,7 +614,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
             onPressed: () => Navigator.pop(context),
             child: Text(_getText('close')),
           ),
-          if (data['status'] == 'active')
+          if (data['status'] == 'active' || data['status'] == 'pending')
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
@@ -496,6 +622,34 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
               },
               child: Text(_getText('changeStatus')),
             ),
+        ],
+      ),
+    );
+  }
+
+  Future<String?> _showCustomMessageDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Send Custom WhatsApp Message'),
+        content: TextField(
+          controller: controller,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            hintText: 'Enter your message here...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: const Text('Send'),
+          ),
         ],
       ),
     );
@@ -523,3 +677,5 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
     );
   }
 }
+
+String l10n(String text) => text; // Placeholder for localization

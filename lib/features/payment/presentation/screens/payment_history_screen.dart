@@ -1,9 +1,109 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/utils/debug_utils.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
-class PaymentHistoryScreen extends StatelessWidget {
+class PaymentHistoryScreen extends StatefulWidget {
   const PaymentHistoryScreen({super.key});
+
+  @override
+  State<PaymentHistoryScreen> createState() => _PaymentHistoryScreenState();
+}
+
+class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _paymentHistory = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPaymentHistory();
+  }
+
+  Future<void> _fetchPaymentHistory() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userId = authProvider.user?.uid;
+      
+      if (userId == null) {
+        setState(() {
+          _isLoading = false;
+          _paymentHistory = [];
+        });
+        return;
+      }
+
+      print('PaymentHistory: Fetching payments for user: $userId');
+
+      // Fetch all bookings for the user (not just success payments)
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('bookings')
+          .where('userId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      print('PaymentHistory: Found ${querySnapshot.docs.length} bookings for user');
+
+      final List<Map<String, dynamic>> payments = [];
+      
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        print('PaymentHistory: Processing booking ${doc.id}');
+        print('PaymentHistory: Payment status: ${data['paymentStatus']}');
+        print('PaymentHistory: Booking status: ${data['status']}');
+        print('PaymentHistory: Deposit amount: ${data['depositAmount']}');
+        
+        // Include all bookings that have a deposit amount (indicating payment was made)
+        if (data['depositAmount'] != null && data['depositAmount'] > 0) {
+          final paymentStatus = data['paymentStatus'] ?? 'unknown';
+          final bookingStatus = data['status'] ?? 'unknown';
+          
+          payments.add({
+            'id': doc.id,
+            'date': (data['createdAt'] as Timestamp).toDate(),
+            'amount': (data['depositAmount'] ?? 0.0).toDouble(),
+            'status': paymentStatus,
+            'bookingStatus': bookingStatus,
+            'description': 'Booking for ${data['crop'] ?? 'Bee Box'} - ${data['numberOfBoxes'] ?? 0} boxes',
+            'bookingData': data,
+          });
+          
+          print('PaymentHistory: Added payment for booking ${doc.id}');
+        }
+      }
+
+      print('PaymentHistory: Total payments found: ${payments.length}');
+
+      setState(() {
+        _paymentHistory = payments;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('PaymentHistory: Error fetching payment history: $e');
+      setState(() {
+        _isLoading = false;
+        _paymentHistory = [];
+      });
+    }
+  }
+
+  Future<void> _debugPayments() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.user?.uid;
+    if (userId != null) {
+      await DebugUtils.debugUserBookings(userId);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment debug info printed to console')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -11,72 +111,54 @@ class PaymentHistoryScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Payment History'),
         backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _fetchPaymentHistory,
+          ),
+          IconButton(
+            icon: const Icon(Icons.bug_report),
+            onPressed: _debugPayments,
+            tooltip: 'Debug Payments',
+          ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Your Payment History',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your Payment History',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'View all your past transactions',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: _buildPaymentHistoryList(),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'View all your past transactions',
-              style: TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: _buildPaymentHistoryList(),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _buildPaymentHistoryList() {
-    // Mock payment history data
-    final List<Map<String, dynamic>> paymentHistory = [
-      {
-        'id': 'PAY123456',
-        'date': DateTime.now().subtract(const Duration(days: 2)),
-        'amount': 1500.0,
-        'status': 'Completed',
-        'description': 'Booking for Bee Box #A123',
-      },
-      {
-        'id': 'PAY123455',
-        'date': DateTime.now().subtract(const Duration(days: 15)),
-        'amount': 2000.0,
-        'status': 'Completed',
-        'description': 'Booking for Bee Box #B456',
-      },
-      {
-        'id': 'PAY123454',
-        'date': DateTime.now().subtract(const Duration(days: 30)),
-        'amount': 1800.0,
-        'status': 'Completed',
-        'description': 'Booking for Bee Box #C789',
-      },
-      {
-        'id': 'PAY123453',
-        'date': DateTime.now().subtract(const Duration(days: 45)),
-        'amount': 1200.0,
-        'status': 'Refunded',
-        'description': 'Booking for Bee Box #D012 (Cancelled)',
-      },
-    ];
-
-    if (paymentHistory.isEmpty) {
+    if (_paymentHistory.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -97,35 +179,71 @@ class PaymentHistoryScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Your payment transactions will appear here',
+              'Your payment transactions will appear here\nMake sure you have completed bookings with payments.',
               style: TextStyle(
                 fontSize: 14,
                 color: AppTheme.textSecondary,
               ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton(
+                  onPressed: _fetchPaymentHistory,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryColor,
+                  ),
+                  child: const Text('Refresh'),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _debugPayments,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                  ),
+                  child: const Text('Debug'),
+                ),
+              ],
+            ),
           ],
         ),
       );
     }
 
-    return ListView.separated(
-      itemCount: paymentHistory.length,
-      separatorBuilder: (context, index) => const Divider(),
-      itemBuilder: (context, index) {
-        final payment = paymentHistory[index];
-        return _buildPaymentItem(payment);
-      },
+    return RefreshIndicator(
+      onRefresh: _fetchPaymentHistory,
+      child: ListView.separated(
+        itemCount: _paymentHistory.length,
+        separatorBuilder: (context, index) => const Divider(),
+        itemBuilder: (context, index) {
+          final payment = _paymentHistory[index];
+          return _buildPaymentItem(payment);
+        },
+      ),
     );
   }
 
   Widget _buildPaymentItem(Map<String, dynamic> payment) {
-    Color statusColor = AppTheme.availableColor; // Default to green for completed
+    // Determine status color based on payment status
+    Color statusColor = Colors.green; // Default to green for success
     
-    if (payment['status'] == 'Refunded') {
-      statusColor = AppTheme.bookedColor; // Red for refunded
-    } else if (payment['status'] == 'Pending') {
+    final paymentStatus = payment['status'].toString().toLowerCase();
+    final bookingStatus = payment['bookingStatus'].toString().toLowerCase();
+    
+    if (paymentStatus == 'pending' || bookingStatus == 'pending') {
       statusColor = Colors.orange; // Orange for pending
+    } else if (paymentStatus == 'failed' || bookingStatus == 'cancelled') {
+      statusColor = Colors.red; // Red for failed/cancelled
+    } else if (paymentStatus == 'success' || bookingStatus == 'active' || bookingStatus == 'completed') {
+      statusColor = Colors.green; // Green for success/active/completed
+    }
+
+    // Determine display status
+    String displayStatus = paymentStatus.toUpperCase();
+    if (paymentStatus == 'unknown' || paymentStatus.isEmpty) {
+      displayStatus = bookingStatus.toUpperCase();
     }
 
     return Card(
@@ -140,7 +258,7 @@ class PaymentHistoryScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  payment['id'],
+                  'Booking #${payment['id'].substring(0, 8)}',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: AppTheme.textPrimary,
@@ -154,7 +272,7 @@ class PaymentHistoryScreen extends StatelessWidget {
                     border: Border.all(color: statusColor),
                   ),
                   child: Text(
-                    payment['status'],
+                    displayStatus,
                     style: TextStyle(
                       color: statusColor,
                       fontSize: 12,
@@ -168,11 +286,13 @@ class PaymentHistoryScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  payment['description'],
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 14,
+                Expanded(
+                  child: Text(
+                    payment['description'],
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
                 Text(
@@ -193,6 +313,17 @@ class PaymentHistoryScreen extends StatelessWidget {
                 fontSize: 12,
               ),
             ),
+            if (paymentStatus != bookingStatus) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Payment: ${paymentStatus.toUpperCase()} | Booking: ${bookingStatus.toUpperCase()}',
+                style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 10,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
           ],
         ),
       ),

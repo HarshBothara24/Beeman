@@ -102,12 +102,8 @@ class DashboardDrawer extends StatelessWidget {
             leading: const Icon(Icons.payment),
             title: Text(_getPaymentHistoryText(selectedLanguage)),
             onTap: () {
-              // TODO: Implement PaymentHistoryScreen
-              // Navigator.of(context).push(
-              //   MaterialPageRoute(builder: (_) => const PaymentHistoryScreen()),
-              // );
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Coming soon!'))
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PaymentHistoryScreen()),
               );
             },
           ),

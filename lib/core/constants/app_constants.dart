@@ -12,11 +12,11 @@ class AppConstants {
   
   // API Endpoints
   static const String whatsappApiBaseUrl = 'https://api.whatsapp.com/v1/';
-  static const String razorpayKeyId = 'YOUR_RAZORPAY_KEY_ID'; // Replace with actual key in production
+  static const String razorpayKeyId = 'rzp_test_KO5xeVD1vkxq42'; // Replace with your actual Razorpay test key
   
   // Collection Names
   static const String usersCollection = 'users';
-  static const String beeBoxesCollection = 'beeboxes';
+  static const String beeBoxesCollection = 'bee_boxes';
   static const String bookingsCollection = 'bookings';
   
   // Booking Constants

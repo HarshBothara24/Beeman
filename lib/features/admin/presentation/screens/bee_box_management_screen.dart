@@ -3,6 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:uuid/uuid.dart';
+import 'package:excel/excel.dart' as excel;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
+import 'package:file_picker/file_picker.dart';
+import 'package:csv/csv.dart';
 
 // Update the import path for AuthProvider
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -167,225 +174,300 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('beeBoxManagement'.tr()),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          // Form for adding/editing bee boxes
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _isEditing
-                          ? 'editBeeBox'.tr()
-                          : 'addNewBeeBox'.tr(),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Box ID field
-                    TextFormField(
-                      controller: _boxIdController,
-                      decoration: InputDecoration(
-                        labelText: 'boxId'.tr(),
-                        border: const OutlineInputBorder(),
-                      ),
-                      enabled: false, // Make Box ID read-only
-                      // validator: (value) {
-                      //   if (value == null || value.isEmpty) {
-                      //     return 'pleaseEnterBoxId'.tr();
-                      //   }
-                      //   return null;
-                      // },
-                    ),
-                    const SizedBox(height: 16),
-                    // name field
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'name'.tr(),
-                        border: const OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'pleaseEntername'.tr();
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    // Status dropdown
-                    DropdownButtonFormField<String>(
-                      value: _statusController.text.isEmpty
-                          ? null
-                          : _statusController.text,
-                      decoration: InputDecoration(
-                        labelText: 'status'.tr(),
-                        border: const OutlineInputBorder(),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'Available',
-                          child: Text('available'.tr()),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Booked',
-                          child: Text('booked'.tr()),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Maintenance',
-                          child: Text('maintenance'.tr()),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          _statusController.text = value;
-                        }
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'pleaseEnterStatus'.tr();
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    // Price field
-                    TextFormField(
-                      controller: _priceController,
-                      decoration: InputDecoration(
-                        labelText: 'price'.tr(),
-                        border: const OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'pleaseEnterValidPrice'.tr();
-                        }
-                        try {
-                          double.parse(value);
-                        } catch (e) {
-                          return 'pleaseEnterValidPrice'.tr();
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    // Number of Boxes field
-                    TextFormField(
-                      controller: _countController,
-                      decoration: InputDecoration(
-                        labelText: 'Number of Boxes', // Add translation key if needed
-                        border: const OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter the number of boxes'; // Add translation key if needed
-                        }
-                        if (int.tryParse(value) == null || int.parse(value) < 1) {
-                          return 'Enter a valid number greater than 0'; // Add translation key if needed
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    // Notes field
-                    TextFormField(
-                      controller: _notesController,
-                      decoration: InputDecoration(
-                        labelText: 'notes'.tr(),
-                        border: const OutlineInputBorder(),
-                      ),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 16),
-                    // Action buttons
-                    Row(
-                      children: [
-                        if (_isEditing)
-                          Expanded(
-                            child: CustomButton(
-                              text: 'cancel'.tr(),
-                              onPressed: _resetForm,
-                              backgroundColor: Colors.grey[300] ?? Colors.grey,
-                              textColor: AppTheme.textPrimary,
-                            ),
-                          ),
-                        if (_isEditing) const SizedBox(width: 16),
-                        Expanded(
-                          child: CustomButton(
-                            text: 'save'.tr(),
-                            onPressed: _saveForm,
-                            isLoading: _isLoading,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+        title: Text(l10n('beeBoxManagement')),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Export to Excel',
+            onPressed: () async {
+              await _exportBeeBoxesToExcel();
+            },
           ),
-          const SizedBox(height: 24),
-          // Bee box list
-          FutureBuilder<QuerySnapshot>(
-            future: FirebaseFirestore.instance.collection('bee_boxes').get(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return Center(child: Text('noBeeBoxesFound'.tr()));
-              }
-              final beeBoxes = snapshot.data!.docs;
-              return ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: beeBoxes.length,
-                itemBuilder: (context, index) {
-                  final data = beeBoxes[index].data() as Map<String, dynamic>;
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: ListTile(
-                      title: Text(
-                        '${data['id']} - ${data['name']}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text('${'status'.tr()}: ${data['status']}\nCount: ${data['count'] ?? 0}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: AppTheme.primaryColor),
-                            onPressed: () => _editBeeBox(beeBoxes[index]),
-                            tooltip: 'edit'.tr(),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteBeeBox(beeBoxes[index].id),
-                            tooltip: 'delete'.tr(),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
+          IconButton(
+            icon: const Icon(Icons.upload_file),
+            tooltip: 'Import from Excel/CSV',
+            onPressed: () async {
+              await _importBeeBoxesFromFile();
             },
           ),
         ],
       ),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Add / Edit Bee Box',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 16),
+            Form(
+              key: _formKey,
+              child: Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _boxIdController,
+                              decoration: InputDecoration(labelText: l10n('Box ID')),
+                              readOnly: true,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _nameController,
+                              decoration: InputDecoration(labelText: l10n('Name')),
+                              validator: (v) => v == null || v.trim().isEmpty ? l10n('Please enter name') : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _statusController.text.isEmpty ? null : _statusController.text,
+                              decoration: InputDecoration(labelText: l10n('Status')),
+                              items: [
+                                DropdownMenuItem(value: 'Available', child: Text(l10n('Available'))),
+                                DropdownMenuItem(value: 'Booked', child: Text(l10n('Booked'))),
+                                DropdownMenuItem(value: 'Maintenance', child: Text(l10n('Maintenance'))),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) _statusController.text = value;
+                              },
+                              validator: (v) => v == null || v.isEmpty ? l10n('Please select status') : null,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _priceController,
+                              decoration: InputDecoration(labelText: l10n('Price (per day)')),
+                              keyboardType: TextInputType.number,
+                              validator: (v) => v == null || v.trim().isEmpty ? l10n('Please enter price') : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _countController,
+                              decoration: InputDecoration(labelText: l10n('Count')),
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _notesController,
+                              decoration: InputDecoration(labelText: l10n('Notes')),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          ElevatedButton(
+                            onPressed: _saveForm,
+                            child: Text(_isEditing ? l10n('Save Changes') : l10n('Add Bee Box')),
+                          ),
+                          const SizedBox(width: 12),
+                          if (_isEditing)
+                            TextButton(
+                              onPressed: _resetForm,
+                              child: Text(l10n('Cancel')),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              l10n('Bee Boxes List'),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: FutureBuilder<QuerySnapshot>(
+                future: FirebaseFirestore.instance.collection('bee_boxes').get(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return Center(child: Text(l10n('No bee boxes found.')));
+                  }
+                  final beeBoxes = snapshot.data!.docs;
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: beeBoxes.length,
+                    itemBuilder: (context, index) {
+                      final data = beeBoxes[index].data() as Map<String, dynamic>;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: ListTile(
+                            leading: Icon(Icons.hive, color: AppTheme.primaryColor),
+                            title: Text('${data['id']} - ${data['name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    _buildStatusChip(data['status'] ?? ''),
+                                    const SizedBox(width: 8),
+                                    Text('₹${data['price']}/day'),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(l10n('Last Maintenance: ${data['lastMaintenance'] ?? ''}')),
+                                if (data['notes'] != null && data['notes'].isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    data['notes'],
+                                    style: TextStyle(color: Colors.grey[600]),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, color: AppTheme.primaryColor),
+                                  onPressed: () => _editBeeBox(beeBoxes[index]),
+                                  tooltip: l10n('Edit'),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => _deleteBeeBox(beeBoxes[index].id),
+                                  tooltip: l10n('Delete'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Future<void> _exportBeeBoxesToExcel() async {
+    final snapshot = await FirebaseFirestore.instance.collection('bee_boxes').get();
+    final beeBoxes = snapshot.docs;
+    if (beeBoxes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n('noBeeBoxesFound'))),
+      );
+      return;
+    }
+    final workbook = excel.Excel.createExcel();
+    final sheet = workbook['BeeBoxes'];
+    sheet.appendRow([
+      'Box ID', 'Name', 'Status', 'Price', 'Notes', 'Count', 'Last Maintenance'
+    ]);
+    for (final box in beeBoxes) {
+      final data = box.data() as Map<String, dynamic>;
+      sheet.appendRow([
+        data['id'] ?? '',
+        data['name'] ?? '',
+        data['status'] ?? '',
+        data['price'] ?? '',
+        data['notes'] ?? '',
+        data['count'] ?? '',
+        data['lastMaintenance'] ?? '',
+      ]);
+    }
+    final fileBytes = workbook.encode();
+    if (kIsWeb) {
+      final blob = html.Blob([fileBytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', 'bee_boxes.xlsx')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/bee_boxes.xlsx');
+      await file.writeAsBytes(fileBytes!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('beeBoxesExported'.tr())),
+      );
+    }
+  }
+
+  Future<void> _importBeeBoxesFromFile() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['csv', 'xlsx']);
+      if (result == null) return;
+      final file = result.files.first;
+      List<List<dynamic>> rows = [];
+      if (file.extension == 'csv') {
+        final csvString = String.fromCharCodes(file.bytes!);
+        rows = const CsvToListConverter().convert(csvString);
+      } else if (file.extension == 'xlsx') {
+        final workbook = excel.Excel.decodeBytes(file.bytes!);
+        final sheet = workbook.tables.values.first;
+        rows = sheet!.rows;
+      }
+      if (rows.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No data found in file.')));
+        return;
+      }
+      // Assume first row is header
+      final header = rows.first.map((e) => e.toString().trim()).toList();
+      for (int i = 1; i < rows.length; i++) {
+        final row = rows[i];
+        if (row.isEmpty) continue;
+        final data = Map<String, dynamic>.fromIterables(header, row);
+        final boxId = data['id']?.toString() ?? data['Box ID']?.toString();
+        if (boxId == null || boxId.isEmpty) continue;
+        await FirebaseFirestore.instance.collection('bee_boxes').doc(boxId).set({
+          'id': boxId,
+          'name': data['name'] ?? data['Name'] ?? '',
+          'status': data['status'] ?? data['Status'] ?? 'Available',
+          'price': double.tryParse(data['price']?.toString() ?? data['Price']?.toString() ?? '0') ?? 0,
+          'notes': data['notes'] ?? data['Notes'] ?? '',
+          'count': int.tryParse(data['count']?.toString() ?? data['Count']?.toString() ?? '0') ?? 0,
+          'lastMaintenance': data['lastMaintenance'] ?? data['Last Maintenance'] ?? '',
+        }, SetOptions(merge: true));
+      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bee boxes imported successfully!')));
+      setState(() {});
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Import failed: $e')));
+    }
   }
 
   Widget _buildBeeBoxList(List<DocumentSnapshot> beeBoxes) {
@@ -431,12 +513,12 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
                 IconButton(
                   icon: const Icon(Icons.edit, color: AppTheme.primaryColor),
                   onPressed: () => _editBeeBox(beeBox),
-                  tooltip: 'edit'.tr(),
+                  tooltip: l10n('edit'),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () => _deleteBeeBox(beeBox.id),
-                  tooltip: 'delete'.tr(),
+                  tooltip: l10n('delete'),
                 ),
               ],
             ),
@@ -461,20 +543,7 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
       default:
         chipColor = Colors.grey;
     }
-    String statusText;
-    switch (status) {
-      case 'Available':
-        statusText = 'available'.tr();
-        break;
-      case 'Booked':
-        statusText = 'booked'.tr();
-        break;
-      case 'Maintenance':
-        statusText = 'maintenance'.tr();
-        break;
-      default:
-        statusText = status;
-    }
+    String statusText = l10n(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -486,3 +555,5 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
     );
   }
 }
+
+String l10n(String text) => text; // Placeholder for localization

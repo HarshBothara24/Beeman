@@ -12,7 +12,8 @@ service cloud.firestore {
 
     // Bee Boxes Collection
     match /bee_boxes/{beeBoxId} {
-      allow read, write: if isSignedIn();
+      allow read : if true; 
+      allow write: if isSignedIn();
     }
 
     // Payments Collection

@@ -13,7 +13,7 @@ class BeeBoxSelectionScreen extends StatefulWidget {
 }
 
 class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
-  final Set<int> selectedBoxes = {};
+  final Set<String> selectedBoxes = {};
   
   @override
   Widget build(BuildContext context) {
@@ -23,150 +23,186 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
-      body: FutureBuilder(
-        future: _fetchBeeBoxesAndBookings(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('bee_boxes').snapshots(),
+        builder: (context, beeBoxSnapshot) {
+          if (beeBoxSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
+          if (beeBoxSnapshot.hasError) {
             return Center(child: Text('Error loading bee boxes'));
           }
-          final data = snapshot.data as Map<String, dynamic>;
-          final List<Map<String, dynamic>> beeBoxes = data['beeBoxes'];
-          final Set<String> bookedBoxIds = data['bookedBoxIds'];
+          final beeBoxes = beeBoxSnapshot.data!.docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            data['id'] = data['id'] ?? doc.id;
+            return data;
+          }).toList();
 
-          return Column(
-            children: [
-              // Legend
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildLegendItem(Colors.grey, 'Not Available'),
-                    _buildLegendItem(Colors.green, 'Available'),
-                    _buildLegendItem(AppTheme.primaryColor, 'Selected'),
-                  ],
-                ),
-              ),
-              // Grid of bee boxes
-              Expanded(
-                child: GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 8,
-                    childAspectRatio: 1,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                  ),
-                  itemCount: beeBoxes.length,
-                  itemBuilder: (context, index) {
-                    final box = beeBoxes[index];
-                    final boxId = box['id'].toString();
-                    final isAvailable = !bookedBoxIds.contains(boxId);
-                    return _buildBeeBox(boxId, isAvailable);
-                  },
-                ),
-              ),
-              // Bottom bar with selection info and proceed button
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${selectedBoxes.length} Boxes Selected',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          'Total: ₹${selectedBoxes.length * 500}',
-                          style: const TextStyle(
-                            color: AppTheme.primaryColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    ElevatedButton(
-                      onPressed: selectedBoxes.isNotEmpty
-                          ? () {
-                              final bookingProvider = Provider.of<BookingProvider>(
-                                context, 
-                                listen: false
-                              );
-                              final totalAmount = selectedBoxes.length * 500.0;
-                              bookingProvider.setBookingDetails(
-                                selectedBoxes,
-                                totalAmount,
-                              );
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const BookingScreen(),
-                                ),
-                              );
-                            }
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 12,
-                        ),
+          return StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('bookings')
+                .where('status', whereIn: ['active', 'pending'])
+                .snapshots(),
+            builder: (context, bookingSnapshot) {
+              if (bookingSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (bookingSnapshot.hasError) {
+                return Center(child: Text('Error loading bookings'));
+              }
+              // 1. Build a map of boxTypeId -> total booked from bookings
+              final Map<String, int> bookedCountByType = {};
+              for (var booking in bookingSnapshot.data!.docs) {
+                final data = booking.data() as Map<String, dynamic>;
+                final boxTypeId = (data['boxTypeId'] ?? data['id'] ?? '').toString();
+                // Ensure quantity is int
+                final quantityRaw = data['quantity'] ?? (data['boxNumbers']?.length ?? 0);
+                final quantity = (quantityRaw is int) ? quantityRaw : int.tryParse(quantityRaw.toString()) ?? 0;
+                if (boxTypeId.isNotEmpty) {
+                  bookedCountByType[boxTypeId] = (bookedCountByType[boxTypeId] ?? 0) + quantity;
+                }
+              }
+
+              return ListView.builder(
+                itemCount: beeBoxes.length,
+                itemBuilder: (context, boxTypeIndex) {
+                  final boxType = beeBoxes[boxTypeIndex];
+                  final boxTypeId = boxType['id'].toString();
+                  final boxTypeName = boxType['name'] ?? 'Box';
+                  final totalCount = boxType['count'] ?? 0;
+                  final bookedCount = bookedCountByType[boxTypeId] ?? 0;
+                  final availableCount = totalCount - bookedCount;
+
+                  // Show as many boxes as 'count' for this type
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                        child: Text('$boxTypeId - $boxTypeName', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       ),
-                      child: const Text('Proceed'),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 8,
+                          childAspectRatio: 1,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                        ),
+                        itemCount: totalCount,
+                        itemBuilder: (context, index) {
+                          final isBooked = index < bookedCount;
+                          final isSelected = selectedBoxes.contains('${boxTypeId}_$index');
+                          Color color;
+                          if (isBooked) {
+                            color = Colors.red;
+                          } else if (isSelected) {
+                            color = Colors.orange;
+                          } else {
+                            color = Colors.green;
+                          }
+                          return GestureDetector(
+                            onTap: isBooked
+                                ? null
+                                : () {
+                                    setState(() {
+                                      if (isSelected) {
+                                        selectedBoxes.remove('${boxTypeId}_$index');
+                                      } else if (selectedBoxes.where((s) => s.startsWith('${boxTypeId}_')).length < availableCount) {
+                                        selectedBoxes.add('${boxTypeId}_$index');
+                                      }
+                                    });
+                                  },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: color,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Center(
+                                child: Text('${index + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
           );
         },
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton(
+          onPressed: selectedBoxes.isNotEmpty
+              ? () {
+                  // Group selectedBoxes by boxTypeId
+                  final Map<String, List<int>> selectedByType = {};
+                  for (final s in selectedBoxes) {
+                    final parts = s.split('_');
+                    if (parts.length == 2) {
+                      final typeId = parts[0];
+                      final idx = int.tryParse(parts[1]) ?? 0;
+                      selectedByType.putIfAbsent(typeId, () => []).add(idx);
+                    }
+                  }
+                  // Pass selectedByType to BookingScreen (modify as needed)
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BookingScreen(
+                        selectedBoxes: selectedByType,
+                      ),
+                    ),
+                  );
+                }
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.primaryColor,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          child: const Text('Proceed'),
+        ),
       ),
     );
   }
 
   Future<Map<String, dynamic>> _fetchBeeBoxesAndBookings() async {
-    // Fetch bee boxes
-    final beeBoxSnapshot = await FirebaseFirestore.instance.collection('bee_boxes').get();
-    final beeBoxes = beeBoxSnapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
-    // Fetch all bookings with status active or pending
-    final bookingSnapshot = await FirebaseFirestore.instance
-        .collection('bookings')
-        .where('status', whereIn: ['active', 'pending'])
-        .get();
-    final bookedBoxIds = <String>{};
-    for (var booking in bookingSnapshot.docs) {
-      final data = booking.data() as Map<String, dynamic>;
-      if (data['boxIds'] != null) {
-        for (var id in List.from(data['boxIds'])) {
-          bookedBoxIds.add(id.toString());
+    try {
+      // Fetch bee boxes
+      final beeBoxSnapshot = await FirebaseFirestore.instance.collection('bee_boxes').get();
+      final beeBoxes = beeBoxSnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        // Use doc.id as fallback if 'id' is missing
+        data['id'] = data['id'] ?? doc.id;
+        return data;
+      }).toList();
+      // Fetch all bookings with status active or pending
+      final bookingSnapshot = await FirebaseFirestore.instance
+          .collection('bookings')
+          .where('status', whereIn: ['active', 'pending'])
+          .get();
+      final bookedBoxIds = <String>{};
+      for (var booking in bookingSnapshot.docs) {
+        final data = booking.data() as Map<String, dynamic>;
+        if (data['boxIds'] != null) {
+          for (var id in List.from(data['boxIds'])) {
+            bookedBoxIds.add(id.toString());
+          }
         }
       }
+      return {
+        'beeBoxes': beeBoxes,
+        'bookedBoxIds': bookedBoxIds,
+      };
+    } catch (e, st) {
+      print('Error fetching bee boxes: $e\n$st');
+      throw Exception('Error loading bee boxes');
     }
-    return {
-      'beeBoxes': beeBoxes,
-      'bookedBoxIds': bookedBoxIds,
-    };
   }
 
   Widget _buildLegendItem(Color color, String label) {
@@ -183,45 +219,6 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
         const SizedBox(width: 8),
         Text(label),
       ],
-    );
-  }
-
-  Widget _buildBeeBox(String boxId, bool isAvailable) {
-    final isSelected = selectedBoxes.contains(int.tryParse(boxId));
-    final color = !isAvailable
-        ? Colors.grey
-        : isSelected
-            ? AppTheme.primaryColor
-            : Colors.green;
-
-    return GestureDetector(
-      onTap: isAvailable
-          ? () {
-              setState(() {
-                if (isSelected) {
-                  selectedBoxes.remove(int.tryParse(boxId));
-                } else {
-                  selectedBoxes.add(int.tryParse(boxId)!);
-                }
-              });
-            }
-          : null,
-      child: Container(
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Center(
-          child: Text(
-            boxId,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: isAvailable ? Colors.white : Colors.black54,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:js' as js; // For web Razorpay integration
+import 'dart:convert'; // For JSON parsing
+import 'dart:html' as html; // For web event listener
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -10,6 +15,7 @@ import '../../../booking/presentation/providers/booking_provider.dart';
 import '../../../booking/domain/models/booking_model.dart';
 import '../widgets/payment_method_card.dart';
 import '../../../booking/data/services/booking_service.dart';
+import '../../../../core/utils/whatsapp_messaging.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Map<String, dynamic> bookingDetails;
@@ -27,6 +33,112 @@ class _PaymentScreenState extends State<PaymentScreen> {
   String _selectedPaymentMethod = 'upi';
   bool _isProcessing = false;
   final DateFormat _dateFormat = DateFormat('dd MMM yyyy');
+  late Razorpay _razorpay;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!kIsWeb) {
+      _razorpay = Razorpay();
+      _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+      _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+      _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    }
+    // Web: Listen for Razorpay payment result from JS
+    if (kIsWeb) {
+      html.window.onMessage.listen((event) {
+        if (event.data is String) {
+          print('Received postMessage: ' + event.data as String); // Debug print
+          try {
+            final data = jsonDecode(event.data as String);
+            if (data['type'] == 'razorpay_payment_success') {
+              setState(() { _isProcessing = false; });
+              _handleWebPaymentSuccess(data['payload']);
+            } else if (data['type'] == 'razorpay_payment_cancelled') {
+              setState(() { _isProcessing = false; });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Payment cancelled.')),
+              );
+            }
+          } catch (e) {
+            print('Error parsing postMessage: $e');
+          }
+        }
+      });
+    }
+  }
+
+  Future<void> _handleWebPaymentSuccess(dynamic paymentResponse) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+    final bookingService = BookingService();
+    final userName = authProvider.user?.displayName ?? '';
+    final booking = BookingModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      userId: authProvider.user?.uid ?? '',
+      boxNumbers: Set<int>.from(widget.bookingDetails['selectedBoxes']),
+      crop: widget.bookingDetails['crop'],
+      location: widget.bookingDetails['location'],
+      phone: widget.bookingDetails['phone'],
+      startDate: widget.bookingDetails['startDate'],
+      endDate: widget.bookingDetails['endDate'],
+      numberOfBoxes: widget.bookingDetails['numberOfBoxes'],
+      notes: widget.bookingDetails['notes'],
+      totalAmount: widget.bookingDetails['totalRent'].toDouble(),
+      depositAmount: widget.bookingDetails['depositAmount'].toDouble(),
+      status: 'pending',
+      createdAt: DateTime.now(),
+      userName: userName,
+      userPhone: widget.bookingDetails['phone'],
+      boxCount: widget.bookingDetails['numberOfBoxes'],
+      paymentStatus: 'success',
+    );
+    try {
+      await bookingService.createBooking(booking);
+      bookingProvider.addBooking(booking);
+      // Optionally send WhatsApp confirmation here
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create booking: $e'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    // Show success dialog or navigate to dashboard
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Payment Successful!'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 64),
+            const SizedBox(height: 16),
+            const Text('Your booking is confirmed.'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const DashboardScreen()),
+                (route) => false,
+              );
+            },
+            child: const Text('Go to Dashboard'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    if (!kIsWeb) {
+      _razorpay.clear();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,50 +154,64 @@ class _PaymentScreenState extends State<PaymentScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Booking summary card
-                _buildBookingSummaryCard(selectedLanguage),
-                const SizedBox(height: 24),
-                // Payment methods
-                Text(
-                  _getPaymentMethodText(selectedLanguage),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // UPI payment method
-                PaymentMethodCard(
-                  title: 'UPI',
-                  subtitle: _getUpiDescriptionText(selectedLanguage),
-                  icon: Icons.account_balance,
-                  isSelected: _selectedPaymentMethod == 'upi',
-                  onTap: () {
-                    setState(() {
-                      _selectedPaymentMethod = 'upi';
-                    });
-                  },
+                // Section: Payment Summary
+                const Text(
+                  'Payment Summary',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
                 ),
                 const SizedBox(height: 12),
-                // Cash payment method
-                PaymentMethodCard(
-                  title: _getCashText(selectedLanguage),
-                  subtitle: _getCashDescriptionText(selectedLanguage),
-                  icon: Icons.money,
-                  isSelected: _selectedPaymentMethod == 'cash',
-                  onTap: () {
-                    setState(() {
-                      _selectedPaymentMethod = 'cash';
-                    });
-                  },
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: _buildBookingSummaryCard(selectedLanguage),
                 ),
-                const SizedBox(height: 24),
-                // Payment button
+                const SizedBox(height: 32),
+                // Section: Payment Methods
+                const Text(
+                  'Select Payment Method',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20.0),
+                    child: Column(
+                      children: [
+                        PaymentMethodCard(
+                          title: 'UPI',
+                          subtitle: _getUpiDescriptionText(selectedLanguage),
+                          icon: Icons.account_balance,
+                          isSelected: _selectedPaymentMethod == 'upi',
+                          onTap: () {
+                            setState(() {
+                              _selectedPaymentMethod = 'upi';
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        PaymentMethodCard(
+                          title: _getCashText(selectedLanguage),
+                          subtitle: _getCashDescriptionText(selectedLanguage),
+                          icon: Icons.money,
+                          isSelected: _selectedPaymentMethod == 'cash',
+                          onTap: () {
+                            setState(() {
+                              _selectedPaymentMethod = 'cash';
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                // Section: Pay Now Button
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -105,10 +231,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           )
                         : Text(
                             _getPayNowText(selectedLanguage),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),
                 ),
@@ -116,11 +239,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 // Payment note
                 Text(
                   _getPaymentNoteText(selectedLanguage),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                    fontStyle: FontStyle.italic,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontStyle: FontStyle.italic),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -227,91 +346,152 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   void _processPayment(String languageCode) async {
+    if (_selectedPaymentMethod != 'upi') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Only UPI payment is supported right now.')),
+      );
+      return;
+    }
     setState(() {
       _isProcessing = true;
     });
-
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
-      final bookingService = BookingService();
-
-      final userName = authProvider.user?.displayName ?? '';
-
-      final booking = BookingModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: authProvider.user?.uid ?? '',
-        boxNumbers: Set<int>.from(widget.bookingDetails['selectedBoxes']),
-        crop: widget.bookingDetails['crop'],
-        location: widget.bookingDetails['location'],
-        phone: widget.bookingDetails['phone'],
-        startDate: widget.bookingDetails['startDate'],
-        endDate: widget.bookingDetails['endDate'],
-        numberOfBoxes: widget.bookingDetails['numberOfBoxes'],
-        notes: widget.bookingDetails['notes'],
-        totalAmount: widget.bookingDetails['totalRent'].toDouble(),
-        depositAmount: widget.bookingDetails['depositAmount'].toDouble(),
-        status: 'pending',
-        createdAt: DateTime.now(),
-        userName: userName,
-        userPhone: widget.bookingDetails['phone'],
-        boxCount: widget.bookingDetails['numberOfBoxes'],
-        paymentStatus: 'pending',
-      );
-
-      try {
-        await bookingService.createBooking(booking);
-        bookingProvider.addBooking(booking);
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create booking: $e'), backgroundColor: Colors.red),
-        );
-        setState(() { _isProcessing = false; });
-        return;
+    final amount = widget.bookingDetails['depositAmount'] as int;
+    final userName = Provider.of<AuthProvider>(context, listen: false).user?.displayName ?? 'BeeMan User';
+    final userEmail = Provider.of<AuthProvider>(context, listen: false).user?.email ?? '';
+    final userPhone = widget.bookingDetails['phone'] ?? '';
+    var options = {
+      'key': AppConstants.razorpayKeyId,
+      'amount': amount * 100, // in paise
+      'name': 'BeeMan',
+      'description': 'BeeBox Booking Deposit',
+      'prefill': {'contact': userPhone, 'email': userEmail},
+      'theme': {'color': '#FFC107'},
+      'currency': 'INR',
+      'method': {'upi': true, 'card': false, 'netbanking': false},
+    };
+    try {
+      if (kIsWeb) {
+        _openRazorpayWebCheckout(options);
+      } else {
+        _razorpay.open(options);
       }
+    } catch (e) {
+      setState(() { _isProcessing = false; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
 
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: Text(_getPaymentSuccessText(languageCode)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.check_circle,
-                color: Colors.green,
-                size: 64,
-              ),
-              const SizedBox(height: 16),
-              Text(_getPaymentSuccessMessageText(languageCode)),
-              const SizedBox(height: 8),
-              Text(
-                _getBookingIdText(languageCode),
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const DashboardScreen()),
-                  (route) => false,
-                );
-              },
-              child: Text(_getGoToDashboardText(languageCode)),
+  // Helper for web Razorpay integration
+  void _openRazorpayWebCheckout(Map options) {
+    // Requires you to add Razorpay Checkout.js and a JS function openRazorpay(options) in web/index.html
+    js.context.callMethod('openRazorpay', [js.JsObject.jsify(options)]);
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
+    final bookingService = BookingService();
+    final userName = authProvider.user?.displayName ?? '';
+    final booking = BookingModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      userId: authProvider.user?.uid ?? '',
+      boxNumbers: Set<int>.from(widget.bookingDetails['selectedBoxes']),
+      crop: widget.bookingDetails['crop'],
+      location: widget.bookingDetails['location'],
+      phone: widget.bookingDetails['phone'],
+      startDate: widget.bookingDetails['startDate'],
+      endDate: widget.bookingDetails['endDate'],
+      numberOfBoxes: widget.bookingDetails['numberOfBoxes'],
+      notes: widget.bookingDetails['notes'],
+      totalAmount: widget.bookingDetails['totalRent'].toDouble(),
+      depositAmount: widget.bookingDetails['depositAmount'].toDouble(),
+      status: 'pending',
+      createdAt: DateTime.now(),
+      userName: userName,
+      userPhone: widget.bookingDetails['phone'],
+      boxCount: widget.bookingDetails['numberOfBoxes'],
+      paymentStatus: 'success',
+    );
+    try {
+      await bookingService.createBooking(booking);
+      bookingProvider.addBooking(booking);
+      // Send WhatsApp confirmation (non-blocking)
+      final phone = booking.phone;
+      final supportContact = 'SUPPORT_PHONE_NUMBER'; // TODO: Set support contact
+      final sent = await WhatsAppMessaging.sendBookingConfirmation(
+        phoneNumber: phone,
+        userName: userName,
+        numberOfBoxes: booking.numberOfBoxes,
+        crop: booking.crop,
+        startDate: booking.startDate.toLocal().toString().split(' ')[0],
+        endDate: booking.endDate.toLocal().toString().split(' ')[0],
+        totalPaid: booking.depositAmount,
+        supportContact: supportContact,
+      );
+      if (!sent && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Booking confirmed, but WhatsApp message failed to send.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create booking: $e'), backgroundColor: Colors.red),
+      );
+      setState(() { _isProcessing = false; });
+      return;
+    }
+    setState(() { _isProcessing = false; });
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text(_getPaymentSuccessText(authProvider.selectedLanguage)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.check_circle,
+              color: Colors.green,
+              size: 64,
+            ),
+            const SizedBox(height: 16),
+            Text(_getPaymentSuccessMessageText(authProvider.selectedLanguage)),
+            const SizedBox(height: 8),
+            Text(
+              _getBookingIdText(authProvider.selectedLanguage),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ],
         ),
-      );
-    }
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const DashboardScreen()),
+                (route) => false,
+              );
+            },
+            child: Text(_getGoToDashboardText(authProvider.selectedLanguage)),
+          ),
+        ],
+      ),
+    );
+  }
 
-    setState(() {
-      _isProcessing = false;
-    });
+  void _handlePaymentError(PaymentFailureResponse response) {
+    setState(() { _isProcessing = false; });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Payment failed: ${response.message}'), backgroundColor: Colors.red),
+    );
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {
+    setState(() { _isProcessing = false; });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('External wallet selected: ${response.walletName}')),
+    );
   }
 
   // Multilingual text getters

@@ -50,8 +50,13 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
       ],
-      child: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
+      child: Consumer2<AuthProvider, BookingProvider>(
+        builder: (context, authProvider, bookingProvider, child) {
+          // Fetch bookings when user logs in or is present
+          final user = authProvider.user;
+          if (user != null) {
+            bookingProvider.fetchUserBookings(user.uid);
+          }
           return MaterialApp(
             title: 'BeeMan',
             debugShowCheckedModeBanner: false,

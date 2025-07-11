@@ -26,6 +26,7 @@ dependencies:
   
   # State management
   provider: ^6.1.1
+  file_picker: ^6.1.1
   
   # UI components
   flutter_svg: ^2.0.9
@@ -44,6 +45,9 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   easy_localization: ^3.0.3
+  csv: ^5.0.2
+  excel: ^2.0.7
+  fl_chart: ^0.66.0
 
 dev_dependencies:
   flutter_test:

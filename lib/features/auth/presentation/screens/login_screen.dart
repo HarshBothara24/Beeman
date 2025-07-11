@@ -8,6 +8,8 @@ import '../../../admin/presentation/screens/admin_login_screen.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/custom_button.dart';
 import 'registration_screen.dart';
+import '../../../profile/presentation/screens/profile_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -242,7 +244,24 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final success = await authProvider.signInWithGoogle();
       if (success && context.mounted) {
-        // Navigate to dashboard
+        // Check if profile is complete
+        final user = authProvider.user;
+        if (user != null) {
+          final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          final data = doc.data() ?? {};
+          final hasName = (data['displayName'] ?? '').toString().trim().isNotEmpty;
+          final hasPhone = (data['phoneNumber'] ?? '').toString().trim().isNotEmpty;
+          final hasEmail = (data['email'] ?? '').toString().trim().isNotEmpty;
+          final hasAddress = (data['address'] ?? '').toString().trim().isNotEmpty;
+          if (!hasName || !hasPhone || !hasEmail || !hasAddress) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            );
+            setState(() { _isLoading = false; });
+            return;
+          }
+        }
+        // Navigate to dashboard if profile is complete
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const DashboardScreen()),
         );

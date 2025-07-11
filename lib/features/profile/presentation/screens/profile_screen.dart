@@ -21,6 +21,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
   late TextEditingController _addressController;
+  late TextEditingController _landSizeController;
   bool _isEditing = false;
   bool _isLoading = false;
   Map<String, dynamic>? userData;
@@ -34,6 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phoneController = TextEditingController(text: authProvider.user?.phoneNumber ?? '');
     _emailController = TextEditingController(text: authProvider.user?.email ?? '');
     _addressController = TextEditingController(text: ''); // Placeholder for address
+    _landSizeController = TextEditingController(text: ''); // Land Size (optional)
     fetchUserData();
   }
 
@@ -43,6 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
+    _landSizeController.dispose();
     super.dispose();
   }
 
@@ -68,8 +71,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Simulate API call
       await Future.delayed(const Duration(seconds: 2));
 
-      // TODO: Implement actual profile update logic with AuthProvider
-      // For now, just toggle edit mode off
       setState(() {
         _isLoading = false;
         _isEditing = false;
@@ -81,16 +82,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
 
-      print('Before Firestore write');
       final authProvider = Provider.of<my_auth.AuthProvider>(context, listen: false);
       final user = authProvider.user;
       await FirebaseFirestore.instance.collection('users').doc(user?.uid).set({
         'displayName': _nameController.text,
-        'phoneNumber': _phoneController.text,
+        'phone': _phoneController.text, // Use 'phone' consistently
         'email': _emailController.text,
         'address': _addressController.text,
+        'landSize': _landSizeController.text,
       });
-      print('After Firestore write');
     }
   }
 
@@ -101,6 +101,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         userData = doc.data();
         isLoading = false;
+        _addressController.text = userData?['address'] ?? '';
+        _landSizeController.text = userData?['landSize'] ?? '';
       });
     } else {
       setState(() {
@@ -204,159 +206,130 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Profile Image
-              Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 60,
-                      backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                      backgroundImage: userData!['photoURL'] != null
-                          ? NetworkImage(userData!['photoURL'])
-                          : null,
-                      child: userData!['photoURL'] == null
-                          ? const Icon(
-                              Icons.person,
-                              size: 60,
-                              color: AppTheme.primaryColor,
-                            )
-                          : null,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: _isEditing
+                ? Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Edit Profile',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: InputDecoration(labelText: _getText('name'), border: const OutlineInputBorder()),
+                          validator: (v) => v == null || v.trim().isEmpty ? _getText('pleaseEnterYourName') : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _phoneController,
+                          decoration: InputDecoration(labelText: _getText('phone'), border: const OutlineInputBorder()),
+                          keyboardType: TextInputType.phone,
+                          validator: (v) => v == null || v.trim().isEmpty ? _getText('pleaseEnterValidPhoneNumber') : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _emailController,
+                          decoration: InputDecoration(labelText: _getText('email'), border: const OutlineInputBorder()),
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (v) => v == null || v.trim().isEmpty ? _getText('pleaseEnterValidEmail') : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _addressController,
+                          decoration: InputDecoration(labelText: _getText('address'), border: const OutlineInputBorder()),
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _landSizeController,
+                          decoration: const InputDecoration(labelText: 'Land Size (optional)', border: OutlineInputBorder()),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            ElevatedButton(
+                              onPressed: _isLoading ? null : _saveProfile,
+                              child: _isLoading ? const CircularProgressIndicator() : Text(_getText('save')),
+                            ),
+                            const SizedBox(width: 16),
+                            TextButton(
+                              onPressed: _isLoading ? null : _toggleEdit,
+                              child: Text(_getText('cancel')),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    if (_isEditing)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor,
-                            shape: BoxShape.circle,
-                          ),
-                          padding: const EdgeInsets.all(8),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            color: Colors.white,
-                            size: 20,
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'My Profile',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                      ),
+                      const SizedBox(height: 16),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        child: Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(20.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 32,
+                                      backgroundColor: AppTheme.primaryColor,
+                                      child: const Icon(Icons.person, color: Colors.white, size: 32),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            userData?['displayName'] ?? 'User',
+                                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            userData?['email'] ?? '',
+                                            style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+                                          ),
+                                          if (userData?['phone'] != null && userData!['phone']!.isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              userData!['phone']!,
+                                              style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                // Add more profile info or actions here
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Personal Information Section
-              Text(
-                _getText('personalInformation'),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Name Field
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: _getText('name'),
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.person),
-                  enabled: _isEditing,
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return _getText('pleaseEnterYourName');
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              
-              // Phone Field
-              TextFormField(
-                controller: _phoneController,
-                decoration: InputDecoration(
-                  labelText: _getText('phone'),
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.phone),
-                  enabled: _isEditing,
-                ),
-                keyboardType: TextInputType.phone,
-                validator: (value) {
-                  if (_isEditing && (value == null || value.isEmpty)) {
-                    return _getText('pleaseEnterValidPhoneNumber');
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              
-              // Email Field
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: _getText('email'),
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.email),
-                  enabled: _isEditing,
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (_isEditing && value != null && value.isNotEmpty) {
-                    // Simple email validation
-                    if (!value.contains('@') || !value.contains('.')) {
-                      return _getText('pleaseEnterValidEmail');
-                    }
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              
-              // Address Field
-              TextFormField(
-                controller: _addressController,
-                decoration: InputDecoration(
-                  labelText: _getText('address'),
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.location_on),
-                  enabled: _isEditing,
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 24),
-              
-              // Action Buttons
-              if (_isEditing)
-                Row(
-                  children: [
-                    Expanded(
-                      child: CustomButton(
-                        text: _getText('cancel'),
-                        onPressed: _toggleEdit,
-                        backgroundColor: Colors.grey[300] ?? Colors.grey,
-                        textColor: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: CustomButton(
-                        text: _getText('save'),
-                        onPressed: _saveProfile,
-                        isLoading: _isLoading,
-                      ),
-                    ),
-                  ],
-                ),
-            ],
+                      const SizedBox(height: 32),
+                      // Add more profile actions or settings here
+                    ],
+                  ),
           ),
         ),
       ),

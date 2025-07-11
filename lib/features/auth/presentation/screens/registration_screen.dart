@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import '../screens/login_screen.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../profile/presentation/screens/profile_screen.dart'; // Added import for ProfileScreen
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -138,6 +139,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             'farmerName': _farmerNameController.text.trim(),
             'username': _usernameController.text.trim(),
             'phone': _phoneController.text.trim(),
+            'address': '', // Address empty at registration
             'email': _emailController.text.trim(),
             'uid': user.uid,
             'createdAt': FieldValue.serverTimestamp(),
@@ -221,8 +223,22 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                                       'displayName': user.displayName,
                                       'uid': user.uid,
                                       'photoURL': user.photoURL,
+                                      'phone': '', // Require completion
+                                      'address': '', // Require completion
                                       'createdAt': FieldValue.serverTimestamp(),
                                     }, SetOptions(merge: true));
+                                  }
+                                  // After Google sign-in, check if phone or address is missing and redirect to ProfileScreen
+                                  final userDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
+                                  final data = userDoc.data();
+                                  if (data == null || (data['phone'] == null || data['phone'].toString().isEmpty) || (data['address'] == null || data['address'].toString().isEmpty)) {
+                                    if (context.mounted) {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                                      );
+                                      return;
+                                    }
                                   }
                                   // Navigate to dashboard
                                   Navigator.pushReplacement(

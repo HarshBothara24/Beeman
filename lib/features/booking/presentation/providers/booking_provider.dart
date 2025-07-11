@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../data/services/booking_service.dart';
 import '../../domain/models/booking_model.dart';
+import 'dart:async';
 
 class BookingProvider with ChangeNotifier {
   Set<int> _selectedBoxes = {};
@@ -17,6 +18,9 @@ class BookingProvider with ChangeNotifier {
 
   // Store bookings in memory
   final List<BookingModel> _bookings = [];
+  
+  // Stream subscription for bookings
+  StreamSubscription<List<BookingModel>>? _bookingsSubscription;
 
   // Getters
   Set<int> get selectedBoxes => _selectedBoxes;
@@ -105,5 +109,39 @@ class BookingProvider with ChangeNotifier {
     _phone = null;
     _notes = null;
     notifyListeners();
+  }
+
+  Future<void> fetchUserBookings(String userId) async {
+    // Cancel existing subscription if any
+    await _bookingsSubscription?.cancel();
+    
+    print('BookingProvider: Fetching bookings for user: $userId');
+    
+    try {
+      final bookingsStream = _bookingService.getUserBookings(userId);
+      _bookingsSubscription = bookingsStream.listen(
+        (bookingsList) {
+          print('BookingProvider: Received ${bookingsList.length} bookings');
+          _bookings.clear();
+          _bookings.addAll(bookingsList);
+          notifyListeners();
+        },
+        onError: (error) {
+          print('BookingProvider: Error fetching bookings: $error');
+          _bookings.clear();
+          notifyListeners();
+        },
+      );
+    } catch (e) {
+      print('BookingProvider: Exception in fetchUserBookings: $e');
+      _bookings.clear();
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _bookingsSubscription?.cancel();
+    super.dispose();
   }
 }

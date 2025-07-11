@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import 'package:excel/excel.dart' as excel;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
 
 class PaymentManagementScreen extends StatefulWidget {
   const PaymentManagementScreen({super.key});
@@ -72,92 +77,144 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> with 
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getText('paymentManagement')),
+        title: Text(l10n('paymentManagement')),
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Tab(text: _getText('all')),
-            Tab(text: _getText('completed')),
-            Tab(text: _getText('pending')),
+            Tab(text: l10n('all')),
+            Tab(text: l10n('completed')),
+            Tab(text: l10n('pending')),
           ],
         ),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(child: _buildSummaryCard(_getText('totalRevenue'), '₹${_calculateTotalRevenue()}', Colors.green, Icons.payments)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildSummaryCard(_getText('pendingAmount'), '₹${_calculatePendingAmount()}', Colors.orange, Icons.pending_actions)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildSummaryCard(_getText('refundedAmount'), '₹${_calculateRefundedAmount()}', Colors.red, Icons.money_off)),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: _getText('search'),
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () => setState(() {
-                          _searchQuery = '';
-                          _searchController.clear();
-                        }),
-                      )
-                    : null,
-              ),
-              onChanged: (value) => setState(() => _searchQuery = value),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Report download feature coming soon')),
-                  );
-                },
-                icon: const Icon(Icons.download),
-                label: Text(_getText('downloadReport')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildPaymentList('All'),
-                _buildPaymentList('Completed'),
-                _buildPaymentList('Pending'),
-              ],
-            ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Export to Excel',
+            onPressed: () async {
+              await _exportPaymentsToExcel();
+            },
           ),
         ],
       ),
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Payment Management',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    hintText: 'Search payments...',
+                    prefixIcon: Icon(Icons.search),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 0),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _payments.length,
+                itemBuilder: (context, index) {
+                  final payment = _payments[index];
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                          child: Icon(Icons.payment, color: AppTheme.primaryColor),
+                        ),
+                        title: Text('Payment #${payment['docId']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Amount: ₹${payment['amount']} | Status: ${payment['status']}'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () async {
+                            await FirebaseFirestore.instance.collection('payments').doc(payment['docId']).delete();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Payment deleted')),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Future<void> _exportPaymentsToExcel() async {
+    final snapshot = await FirebaseFirestore.instance.collection('payments').get();
+    final payments = snapshot.docs;
+    if (payments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No payments to export.')),
+      );
+      return;
+    }
+    final workbook = excel.Excel.createExcel();
+    final sheet = workbook['Payments'];
+    sheet.appendRow([
+      'Payment ID', 'User ID', 'Amount', 'Status', 'Date', 'Description'
+    ]);
+    for (final payment in payments) {
+      final data = payment.data() as Map<String, dynamic>;
+      sheet.appendRow([
+        payment.id,
+        data['userId'] ?? '',
+        data['amount'] ?? '',
+        data['status'] ?? '',
+        data['date'] ?? '',
+        data['description'] ?? '',
+      ]);
+    }
+    final fileBytes = workbook.encode();
+    if (kIsWeb) {
+      final blob = html.Blob([fileBytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', 'payments.xlsx')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } else {
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/payments.xlsx');
+      await file.writeAsBytes(fileBytes!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Exported to ${file.path}')),
+      );
+    }
   }
 
   Widget _buildPaymentList(String status) {
     final filteredPayments = _getFilteredPayments(status);
     if (filteredPayments.isEmpty) {
-      return Center(child: Text(_getText('noPaymentsFound')));
+      return Center(child: Text(l10n('No payments found')));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -174,31 +231,31 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> with 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('${_getText('paymentId')}: ${payment['id']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('${l10n('paymentId')}: ${payment['id']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     _buildStatusChip(payment['status']),
                   ],
                 ),
                 const Divider(),
-                _buildInfoRow(Icons.confirmation_number, _getText('bookingId'), payment['bookingId']),
-                _buildInfoRow(Icons.person, _getText('customer'), payment['userName']),
-                _buildInfoRow(Icons.payments, _getText('amount'), '₹${payment['amount']}'),
-                _buildInfoRow(Icons.payment, _getText('paymentMethod'), payment['paymentMethod']),
+                _buildInfoRow(Icons.confirmation_number, l10n('bookingId'), payment['bookingId']),
+                _buildInfoRow(Icons.person, l10n('customer'), payment['userName']),
+                _buildInfoRow(Icons.payments, l10n('amount'), '₹${payment['amount']}'),
+                _buildInfoRow(Icons.payment, l10n('paymentMethod'), payment['paymentMethod']),
                 if ((payment['transactionId'] ?? '').toString().isNotEmpty)
-                  _buildInfoRow(Icons.receipt_long, _getText('transactionId'), payment['transactionId']),
-                _buildInfoRow(Icons.calendar_today, _getText('date'), payment['date']),
+                  _buildInfoRow(Icons.receipt_long, l10n('transactionId'), payment['transactionId']),
+                _buildInfoRow(Icons.calendar_today, l10n('date'), payment['date']),
                 const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton.icon(
                       icon: const Icon(Icons.visibility),
-                      label: Text(_getText('viewDetails')),
+                      label: Text(l10n('viewDetails')),
                       onPressed: () => _showPaymentDetails(payment),
                     ),
                     if (payment['status'] == 'Pending')
                       TextButton.icon(
                         icon: const Icon(Icons.edit),
-                        label: Text(_getText('updateStatus')),
+                        label: Text(l10n('updateStatus')),
                         onPressed: () => _showUpdateStatusDialog(payment),
                       ),
                   ],
@@ -229,7 +286,7 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> with 
       default:
         chipColor = Colors.grey;
     }
-    final statusText = _getText(status.toLowerCase());
+    final statusText = l10n(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -303,12 +360,12 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> with 
       context: context,
       builder: (_) => StatefulBuilder(
         builder: (context, setStateDialog) => AlertDialog(
-          title: Text(_getText('updatePaymentStatus')),
+          title: Text(l10n('updatePaymentStatus')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: ['Completed', 'Pending', 'Refunded', 'Failed'].map((status) {
               return RadioListTile<String>(
-                title: Text(_getText(status.toLowerCase())),
+                title: Text(l10n(status.toLowerCase())),
                 value: status,
                 groupValue: newStatus,
                 onChanged: (value) => setStateDialog(() => newStatus = value!),
@@ -316,14 +373,14 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> with 
             }).toList(),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(_getText('cancel'))),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n('cancel'))),
             TextButton(
               onPressed: () {
                 FirebaseFirestore.instance.collection('payments').doc(payment['docId']).update({'status': newStatus});
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_getText('statusUpdated'))));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n('statusUpdated'))));
               },
-              child: Text(_getText('update')),
+              child: Text(l10n('update')),
             ),
           ],
         ),
@@ -360,41 +417,5 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> with 
     );
   }
 
-  String _getText(String key) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final lang = authProvider.languageCode;
-    const textMap = {
-      'paymentManagement': {'en': 'Payment Management', 'hi': 'भुगतान प्रबंधन', 'mr': 'पेमेंट व्यवस्थापन'},
-      'all': {'en': 'All', 'hi': 'सभी', 'mr': 'सर्व'},
-      'completed': {'en': 'Completed', 'hi': 'पूर्ण', 'mr': 'पूर्ण'},
-      'pending': {'en': 'Pending', 'hi': 'लंबित', 'mr': 'प्रलंबित'},
-      'refunded': {'en': 'Refunded', 'hi': 'वापस किया गया', 'mr': 'परत केले'},
-      'failed': {'en': 'Failed', 'hi': 'विफल', 'mr': 'अयशस्वी'},
-      'search': {'en': 'Search payments...', 'hi': 'भुगतान खोजें...', 'mr': 'पेमेंट शोधा...'},
-      'paymentId': {'en': 'Payment ID', 'hi': 'भुगतान आईडी', 'mr': 'पेमेंट आयडी'},
-      'bookingId': {'en': 'Booking ID', 'hi': 'बुकिंग आईडी', 'mr': 'बुकिंग आयडी'},
-      'customer': {'en': 'Customer', 'hi': 'ग्राहक', 'mr': 'ग्राहक'},
-      'amount': {'en': 'Amount', 'hi': 'राशि', 'mr': 'रक्कम'},
-      'paymentMethod': {'en': 'Payment Method', 'hi': 'भुगतान विधि', 'mr': 'पेमेंट पद्धत'},
-      'transactionId': {'en': 'Transaction ID', 'hi': 'लेनदेन आईडी', 'mr': 'व्यवहार आयडी'},
-      'status': {'en': 'Status', 'hi': 'स्थिति', 'mr': 'स्थिती'},
-      'date': {'en': 'Date', 'hi': 'तारीख', 'mr': 'तारीख'},
-      'notes': {'en': 'Notes', 'hi': 'नोट्स', 'mr': 'नोट्स'},
-      'viewDetails': {'en': 'View Details', 'hi': 'विवरण देखें', 'mr': 'तपशील पहा'},
-      'updateStatus': {'en': 'Update Status', 'hi': 'स्थिति अपडेट करें', 'mr': 'स्थिती अपडेट करा'},
-      'paymentDetails': {'en': 'Payment Details', 'hi': 'भुगतान विवरण', 'mr': 'पेमेंट तपशील'},
-      'close': {'en': 'Close', 'hi': 'बंद करें', 'mr': 'बंद करा'},
-      'updatePaymentStatus': {'en': 'Update Payment Status', 'hi': 'भुगतान स्थिति अपडेट करें', 'mr': 'पेमेंट स्थिती अपडेट करा'},
-      'cancel': {'en': 'Cancel', 'hi': 'रद्द करें', 'mr': 'रद्द करा'},
-      'update': {'en': 'Update', 'hi': 'अपडेट करें', 'mr': 'अपडेट करा'},
-      'statusUpdated': {'en': 'Payment status updated successfully', 'hi': 'भुगतान स्थिति सफलतापूर्वक अपडेट की गई', 'mr': 'पेमेंट स्थिती यशस्वीरित्या अपडेट केली'},
-      'noPaymentsFound': {'en': 'No payments found', 'hi': 'कोई भुगतान नहीं मिला', 'mr': 'कोणतेही पेमेंट आढळले नाही'},
-      'totalRevenue': {'en': 'Total Revenue', 'hi': 'कुल राजस्व', 'mr': 'एकूण महसूल'},
-      'pendingAmount': {'en': 'Pending Amount', 'hi': 'लंबित राशि', 'mr': 'प्रलंबित रक्कम'},
-      'refundedAmount': {'en': 'Refunded Amount', 'hi': 'वापस की गई राशि', 'mr': 'परत केलेली रक्कम'},
-      'downloadReport': {'en': 'Download Report', 'hi': 'रिपोर्ट डाउनलोड करें', 'mr': 'अहवाल डाउनलोड करा'},
-    };
-
-    return textMap[key]?[lang] ?? textMap[key]?['en'] ?? key;
-  }
+  String l10n(String text) => text; // Placeholder for localization
 }
