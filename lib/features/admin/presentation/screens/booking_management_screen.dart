@@ -39,8 +39,10 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
   List<DocumentSnapshot> _getFilteredBookings(List<DocumentSnapshot> bookings, String status) {
     return bookings.where((booking) {
       final data = booking.data() as Map<String, dynamic>;
-      // Filter by status
-      final statusMatch = data['status'] == status;
+      // For the 'active' tab, include both 'active' and 'pending'
+      final statusMatch = status == 'active'
+          ? (data['status'] == 'active' || data['status'] == 'pending')
+          : data['status'] == status;
 
       // Filter by search query if present
       final searchMatch = _searchQuery.isEmpty ||

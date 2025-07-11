@@ -104,49 +104,61 @@ class AdminDashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 // Stats cards (real-time)
-                StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance.collection('bookings').snapshots(),
-                  builder: (context, snapshot) {
-                    final bookings = snapshot.hasData ? snapshot.data!.docs : [];
-                    final totalBookings = bookings.length;
-                    final activeBookings = bookings.where((b) => (b.data() as Map<String, dynamic>)['status'] == 'active').length;
-                    final pendingBookings = bookings.where((b) => (b.data() as Map<String, dynamic>)['status'] == 'pending').length;
-                    final totalRevenue = bookings.fold<double>(0.0, (sum, b) => sum + ((b.data() as Map<String, dynamic>)['totalAmount'] ?? 0.0));
-                    return GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      children: [
-                        GestureDetector(
-                          onTap: () => _navigateToBookingManagement(context),
-                          child: _buildStatCard(
-                            'Total Bookings',
-                            totalBookings.toString(),
-                            Icons.calendar_today,
-                            Colors.blue,
-                          ),
-                        ),
-                        _buildStatCard(
-                          'Active Bookings',
-                          activeBookings.toString(),
-                          Icons.hive,
-                          Colors.green,
-                        ),
-                        _buildStatCard(
-                          'Pending Bookings',
-                          pendingBookings.toString(),
-                          Icons.pending,
-                          Colors.orange,
-                        ),
-                        _buildStatCard(
-                          'Total Revenue',
-                          '₹$totalRevenue',
-                          Icons.money,
-                          Colors.purple,
-                        ),
-                      ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    int crossAxisCount = 2;
+                    double width = constraints.maxWidth;
+                    if (width > 900) {
+                      crossAxisCount = 4;
+                    } else if (width > 600) {
+                      crossAxisCount = 3;
+                    }
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: FirebaseFirestore.instance.collection('bookings').snapshots(),
+                      builder: (context, snapshot) {
+                        final bookings = snapshot.hasData ? snapshot.data!.docs : [];
+                        final totalBookings = bookings.length;
+                        final activeBookings = bookings.where((b) => (b.data() as Map<String, dynamic>)['status'] == 'active').length;
+                        final pendingBookings = bookings.where((b) => (b.data() as Map<String, dynamic>)['status'] == 'pending').length;
+                        final totalRevenue = bookings.fold<double>(0.0, (sum, b) => sum + ((b.data() as Map<String, dynamic>)['totalAmount'] ?? 0.0));
+                        return GridView.count(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: 24,
+                          mainAxisSpacing: 24,
+                          childAspectRatio: 1.2,
+                          children: [
+                            GestureDetector(
+                              onTap: () => _navigateToBookingManagement(context),
+                              child: _buildStatCard(
+                                'Total Bookings',
+                                totalBookings.toString(),
+                                Icons.calendar_today,
+                                Colors.blue,
+                              ),
+                            ),
+                            _buildStatCard(
+                              'Active Bookings',
+                              activeBookings.toString(),
+                              Icons.hive,
+                              Colors.green,
+                            ),
+                            _buildStatCard(
+                              'Pending Bookings',
+                              pendingBookings.toString(),
+                              Icons.pending,
+                              Colors.orange,
+                            ),
+                            _buildStatCard(
+                              'Total Revenue',
+                              '₹$totalRevenue',
+                              Icons.money,
+                              Colors.purple,
+                            ),
+                          ],
+                        );
+                      },
                     );
                   },
                 ),
@@ -162,46 +174,58 @@ class AdminDashboardScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 // Dashboard cards
-                GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    // Bee Box Management
-                    DashboardCard(
-                      title: 'Bee Boxes',
-                      subtitle: 'Manage bee boxes',
-                      icon: Icons.grid_view,
-                      color: Colors.amber,
-                      onTap: () => _navigateToBeeBoxManagement(context),
-                    ),
-                    // Booking Management
-                    DashboardCard(
-                      title: 'Bookings',
-                      subtitle: 'Manage bookings',
-                      icon: Icons.calendar_today,
-                      color: Colors.green,
-                      onTap: () => _navigateToBookingManagement(context),
-                    ),
-                    // User Management
-                    DashboardCard(
-                      title: 'Users',
-                      subtitle: 'Manage users',
-                      icon: Icons.people,
-                      color: Colors.blue,
-                      onTap: () => _navigateToUserManagement(context),
-                    ),
-                    // Payment Management
-                    DashboardCard(
-                      title: 'Payments',
-                      subtitle: 'Manage payments',
-                      icon: Icons.payment,
-                      color: Colors.purple,
-                      onTap: () => _navigateToPaymentManagement(context),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    int crossAxisCount = 2;
+                    double width = constraints.maxWidth;
+                    if (width > 900) {
+                      crossAxisCount = 4;
+                    } else if (width > 600) {
+                      crossAxisCount = 3;
+                    }
+                    return GridView.count(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: 24,
+                      mainAxisSpacing: 24,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 1.1,
+                      children: [
+                        // Bee Box Management
+                        DashboardCard(
+                          title: 'Bee Boxes',
+                          subtitle: 'Manage bee boxes',
+                          icon: Icons.grid_view,
+                          color: Colors.amber,
+                          onTap: () => _navigateToBeeBoxManagement(context),
+                        ),
+                        // Booking Management
+                        DashboardCard(
+                          title: 'Bookings',
+                          subtitle: 'Manage bookings',
+                          icon: Icons.calendar_today,
+                          color: Colors.green,
+                          onTap: () => _navigateToBookingManagement(context),
+                        ),
+                        // User Management
+                        DashboardCard(
+                          title: 'Users',
+                          subtitle: 'Manage users',
+                          icon: Icons.people,
+                          color: Colors.blue,
+                          onTap: () => _navigateToUserManagement(context),
+                        ),
+                        // Payment Management
+                        DashboardCard(
+                          title: 'Payments',
+                          subtitle: 'Manage payments',
+                          icon: Icons.payment,
+                          color: Colors.purple,
+                          onTap: () => _navigateToPaymentManagement(context),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
                 // Recent bookings
@@ -239,10 +263,10 @@ class AdminDashboardScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Add box management screen
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Box management coming soon!')),
-          );
+          Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => BeeBoxManagementScreen()),
+    );
         },
         backgroundColor: AppTheme.primaryColor,
         child: const Icon(Icons.add),

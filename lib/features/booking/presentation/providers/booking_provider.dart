@@ -62,6 +62,7 @@ class BookingProvider with ChangeNotifier {
     required DateTime startDate,
     required DateTime endDate,
     String? notes,
+    String? userName,
   }) async {
     final booking = BookingModel(
       id: '', // Firestore will generate this
@@ -78,6 +79,10 @@ class BookingProvider with ChangeNotifier {
       depositAmount: _totalAmount * AppConstants.depositPercentage / 100,
       status: 'pending',
       createdAt: DateTime.now(),
+      userName: userName,
+      userPhone: phone,
+      boxCount: _selectedBoxes.length,
+      paymentStatus: 'pending',
     );
 
     await _bookingService.createBooking(booking);

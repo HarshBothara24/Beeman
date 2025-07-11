@@ -238,6 +238,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
       final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
       final bookingService = BookingService();
 
+      final userName = authProvider.user?.displayName ?? '';
+
       final booking = BookingModel(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         userId: authProvider.user?.uid ?? '',
@@ -253,6 +255,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
         depositAmount: widget.bookingDetails['depositAmount'].toDouble(),
         status: 'pending',
         createdAt: DateTime.now(),
+        userName: userName,
+        userPhone: widget.bookingDetails['phone'],
+        boxCount: widget.bookingDetails['numberOfBoxes'],
+        paymentStatus: 'pending',
       );
 
       try {

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:easy_localization/easy_localization.dart';
 
 import 'core/config/firebase_options.dart';
 import 'core/theme/app_theme.dart';
@@ -18,6 +19,7 @@ import 'utils/responsive_utils.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await EasyLocalization.ensureInitialized();
 
   try {
     await Firebase.initializeApp(
@@ -28,7 +30,14 @@ void main() async {
     print('Failed to initialize Firebase: $e');
   }
 
-  runApp(const MyApp());
+  runApp(
+    EasyLocalization(
+      supportedLocales: const [Locale('en'), Locale('hi'), Locale('mr')],
+      path: 'assets/translations',
+      fallbackLocale: const Locale('en'),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -47,16 +56,9 @@ class MyApp extends StatelessWidget {
             title: 'BeeMan',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
-            supportedLocales: const [
-              Locale('en', ''),
-              Locale('hi', ''),
-              Locale('mr', ''),
-            ],
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
+            locale: context.locale,
+            supportedLocales: context.supportedLocales,
+            localizationsDelegates: context.localizationDelegates,
             home: const LoginScreen(),
             routes: {
               '/login': (context) => const LoginScreen(),

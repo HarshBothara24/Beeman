@@ -1,0 +1,17 @@
+{
+  "select_language": "भाषा चुनें",
+  "continue": "जारी रखें",
+  "name": "नाम",
+  "phone": "फ़ोन",
+  "email": "ईमेल",
+  "farm_address": "फार्म का पता",
+  "land_size": "भूमि का आकार (वैकल्पिक)",
+  "login": "लॉगिन",
+  "register": "रजिस्टर करें",
+  "dashboard": "डैशबोर्ड",
+  "booking": "बुकिंग",
+  "payment": "भुगतान",
+  "admin_panel": "एडमिन पैनल",
+  "logout": "लॉगआउट"
+}
+// ... more keys as needed ... 

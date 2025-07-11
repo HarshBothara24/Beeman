@@ -1,0 +1,17 @@
+{
+  "select_language": "भाषा निवडा",
+  "continue": "सुरू ठेवा",
+  "name": "नाव",
+  "phone": "फोन",
+  "email": "ईमेल",
+  "farm_address": "शेतीचा पत्ता",
+  "land_size": "जमिनीचा आकार (पर्यायी)",
+  "login": "लॉगिन",
+  "register": "नोंदणी करा",
+  "dashboard": "डॅशबोर्ड",
+  "booking": "बुकिंग",
+  "payment": "पेमेंट",
+  "admin_panel": "प्रशासन पॅनल",
+  "logout": "लॉगआउट"
+}
+// ... more keys as needed ... 

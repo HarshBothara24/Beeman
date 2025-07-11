@@ -15,6 +15,10 @@ class BookingModel {
   final double depositAmount;
   final String status; // pending, active, completed, cancelled
   final DateTime createdAt;
+  final String? userName;
+  final String? userPhone;
+  final int? boxCount;
+  final String? paymentStatus;
 
   BookingModel({
     required this.id,
@@ -31,6 +35,10 @@ class BookingModel {
     required this.depositAmount,
     required this.status,
     required this.createdAt,
+    this.userName,
+    this.userPhone,
+    this.boxCount,
+    this.paymentStatus,
   });
 
   factory BookingModel.fromFirestore(DocumentSnapshot doc) {
@@ -50,6 +58,10 @@ class BookingModel {
       depositAmount: data['depositAmount'],
       status: data['status'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
+      userName: data['userName'],
+      userPhone: data['userPhone'],
+      boxCount: data['boxCount'],
+      paymentStatus: data['paymentStatus'],
     );
   }
 
@@ -68,6 +80,10 @@ class BookingModel {
       'depositAmount': depositAmount,
       'status': status,
       'createdAt': Timestamp.fromDate(createdAt),
+      'userName': userName,
+      'userPhone': userPhone,
+      'boxCount': boxCount,
+      'paymentStatus': paymentStatus,
     };
   }
 }

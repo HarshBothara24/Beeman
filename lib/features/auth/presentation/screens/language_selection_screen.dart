@@ -4,6 +4,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 import 'registration_screen.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
   const LanguageSelectionScreen({super.key});
@@ -32,20 +33,14 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                 ),
                 const SizedBox(height: 32),
                 const Text(
-                  'Select Language',
+                  'select_language'.tr(),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'भाषा चुनें / भाषा निवडा',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
+                // You can add a subtitle if needed, or remove this for now
                 const SizedBox(height: 48),
                 _buildLanguageButton(
                   'English',
@@ -77,7 +72,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                       ),
                     ),
                     child: const Text(
-                      'Continue',
+                      'continue'.tr(),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -143,7 +138,8 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
   void _continueWithLanguage() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     authProvider.setLanguage(_selectedLanguage);
-    
+    // Set the app locale using easy_localization
+    context.setLocale(Locale(_selectedLanguage));
     // Navigate to registration screen after language selection
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const RegistrationScreen()),
