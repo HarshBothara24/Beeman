@@ -16,6 +16,7 @@ import '../../../booking/domain/models/booking_model.dart';
 import '../widgets/payment_method_card.dart';
 import '../../../booking/data/services/booking_service.dart';
 import '../../../../core/utils/whatsapp_messaging.dart';
+import '../../../notifications/notification_service.dart';
 
 class PaymentScreen extends StatefulWidget {
   final Map<String, dynamic> bookingDetails;
@@ -417,19 +418,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     try {
       await bookingService.createBooking(booking);
       bookingProvider.addBooking(booking);
-      // Send WhatsApp confirmation (non-blocking)
-      final phone = booking.phone;
-      final supportContact = 'SUPPORT_PHONE_NUMBER'; // TODO: Set support contact
-      final sent = await WhatsAppMessaging.sendBookingConfirmation(
-        phoneNumber: phone,
-        userName: userName,
-        numberOfBoxes: booking.numberOfBoxes,
-        crop: booking.crop,
-        startDate: booking.startDate.toLocal().toString().split(' ')[0],
-        endDate: booking.endDate.toLocal().toString().split(' ')[0],
-        totalPaid: booking.depositAmount,
-        supportContact: supportContact,
-      );
+      
+      // Send WhatsApp confirmation using notification service
+      final sent = await NotificationService.sendBookingConfirmation(booking);
       if (!sent && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Booking confirmed, but WhatsApp message failed to send.')),

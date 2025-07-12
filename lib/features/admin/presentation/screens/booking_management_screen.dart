@@ -12,6 +12,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../booking/presentation/widgets/booking_status_badge.dart';
 import '../../../../core/utils/whatsapp_messaging.dart';
+import '../../../notifications/notification_service.dart';
 
 class BookingManagementScreen extends StatefulWidget {
   const BookingManagementScreen({super.key});
@@ -72,65 +73,13 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
     }
   }
 
-  void _showBookingDetails(DocumentSnapshot booking) {
+  void _showBookingDetails(DocumentSnapshot booking) async {
     final data = booking.data() as Map<String, dynamic>;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${_getText('bookingDetails')}: ${data['id']}'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailRow(_getText('customer'), data['userName'] ?? ''),
-              _buildDetailRow(_getText('phone'), data['userPhone'] ?? ''),
-              _buildDetailRow(_getText('crop'), data['crop'] ?? ''),
-              _buildDetailRow(_getText('location'), data['location'] ?? ''),
-              _buildDetailRow(_getText('dateRange'), '${data['startDate']} to ${data['endDate']}'),
-              _buildDetailRow(_getText('boxCount'), (data['boxCount'] ?? 0).toString()),
-              _buildDetailRow(_getText('totalAmount'), '₹${data['totalAmount']}'),
-              _buildDetailRow(_getText('paymentStatus'), data['paymentStatus'] ?? ''),
-              _buildDetailRow(_getText('bookingStatus'), data['status'] ?? ''),
-              if (data['notes'] != null && data['notes'].isNotEmpty)
-                _buildDetailRow(_getText('notes'), data['notes']),
-              _buildDetailRow(_getText('createdAt'), data['createdAt'] ?? ''),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(_getText('close')),
-          ),
-          TextButton(
-            onPressed: () async {
-              final customMessage = await _showCustomMessageDialog(context);
-              if (customMessage != null && customMessage.trim().isNotEmpty) {
-                final sent = await WhatsAppMessaging.sendCustomMessage(
-                  phoneNumber: data['userPhone'] ?? '',
-                  message: customMessage.trim(),
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(sent ? 'WhatsApp message sent!' : 'Failed to send WhatsApp message.')),
-                  );
-                }
-              }
-            },
-            child: const Text('Send WhatsApp Message'),
-          ),
-          if (data['status'] == 'active')
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _showStatusChangeDialog(booking);
-              },
-              child: Text(_getText('changeStatus')),
-            ),
-        ],
-      ),
-    );
+    Map<String, dynamic>? user;
+    if (data['userId'] != null && data['userId'].toString().isNotEmpty) {
+      user = await _fetchUserDetails(data['userId']);
+    }
+    _showBookingDetailsWithUser(booking, user);
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -510,48 +459,117 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(child: Text('Error:  [1m${snapshot.error} [0m'));
         }
 
         final bookings = snapshot.data?.docs ?? [];
+        // Sort by createdAt descending
+        bookings.sort((a, b) {
+          final aData = a.data() as Map<String, dynamic>;
+          final bData = b.data() as Map<String, dynamic>;
+          final aCreated = aData['createdAt'] is Timestamp ? (aData['createdAt'] as Timestamp).toDate() : DateTime.tryParse(aData['createdAt']?.toString() ?? '') ?? DateTime(1970);
+          final bCreated = bData['createdAt'] is Timestamp ? (bData['createdAt'] as Timestamp).toDate() : DateTime.tryParse(bData['createdAt']?.toString() ?? '') ?? DateTime(1970);
+          return bCreated.compareTo(aCreated);
+        });
         final filteredBookings = _getFilteredBookings(bookings, status);
-        final authProvider = Provider.of<AuthProvider>(context);
-
         if (filteredBookings.isEmpty) {
-          return Center(
-            child: Text(l10n('No bookings found')),
+          return Center(child: Text(l10n('No bookings found')));
+        }
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: [
+              DataColumn(label: Text(_getText('bookingId'))),
+              DataColumn(label: Text(_getText('customer'))),
+              DataColumn(label: Text(_getText('phone'))),
+              DataColumn(label: Text(_getText('crop'))),
+              DataColumn(label: Text(_getText('dateRange'))),
+              DataColumn(label: Text(_getText('boxCount'))),
+              DataColumn(label: Text(_getText('totalAmount'))),
+              DataColumn(label: Text(_getText('bookingStatus'))),
+              DataColumn(label: Text('Actions')),
+            ],
+            rows: filteredBookings.map((booking) {
+              final data = booking.data() as Map<String, dynamic>;
+              final bookingId = booking.id;
+              final userName = data['userName'] ?? '';
+              final userPhone = data['userPhone'] ?? '';
+              final crop = data['crop'] ?? '';
+              String formatDate(dynamic value) {
+                if (value == null) return '';
+                if (value is String) return value.split(' ').first;
+                if (value is Timestamp) return value.toDate().toString().split(' ').first;
+                return value.toString();
+              }
+              final startDate = formatDate(data['startDate']);
+              final endDate = formatDate(data['endDate']);
+              final dateRange = '$startDate to $endDate';
+              final boxCount = data['boxCount']?.toString() ?? '';
+              final totalAmount = data['totalAmount'] != null ? '₹${data['totalAmount']}' : '';
+              final bookingStatus = data['status'] ?? '';
+              return DataRow(cells: [
+                DataCell(Text(bookingId)),
+                DataCell(Text(userName)),
+                DataCell(Text(userPhone)),
+                DataCell(Text(crop)),
+                DataCell(Text(dateRange)),
+                DataCell(Text(boxCount)),
+                DataCell(Text(totalAmount)),
+                DataCell(_statusDropdown(booking, bookingStatus)),
+                DataCell(Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.message, color: Colors.green),
+                      tooltip: 'Send WhatsApp',
+                      onPressed: () async {
+                        final message =
+                            '🟡 *BeeMan Booking Update*\n\n'
+                            'Hello $userName,\n\n'
+                            'Your booking *$bookingId* for *$crop* is currently *${bookingStatus.toUpperCase()}*.\n\n'
+                            '📅 *Dates:* $dateRange\n\n'
+                            'If you have any questions, reply to this message or contact support.';
+                        final sent = await NotificationService.sendCustomMessage(
+                          phoneNumber: userPhone,
+                          message: message,
+                          userId: data['userId'] ?? '',
+                          bookingId: bookingId,
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(sent ? 'WhatsApp message sent!' : 'Failed to send WhatsApp message.')),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.info_outline, color: Colors.blue),
+                      tooltip: 'View Details',
+                      onPressed: () => _showBookingDetails(booking),
+                    ),
+                  ],
+                )),
+              ]);
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _statusDropdown(DocumentSnapshot booking, String currentStatus) {
+    return DropdownButton<String>(
+      value: currentStatus,
+      items: <String>['pending', 'active', 'completed', 'cancelled']
+          .map((status) => DropdownMenuItem(
+                value: status,
+                child: Text(status[0].toUpperCase() + status.substring(1)),
+              ))
+          .toList(),
+      onChanged: (newStatus) async {
+        if (newStatus != null && newStatus != currentStatus) {
+          await FirebaseFirestore.instance.collection('bookings').doc(booking.id).update({'status': newStatus});
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Status updated to $newStatus')),
           );
         }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: filteredBookings.length,
-          itemBuilder: (context, index) {
-            final booking = filteredBookings[index];
-            final data = booking.data() as Map<String, dynamic>;
-            final userId = data['userId'] ?? '';
-            return FutureBuilder<Map<String, dynamic>?>(
-              future: _fetchUserDetails(userId),
-              builder: (context, userSnapshot) {
-                final user = userSnapshot.data;
-                return ListTile(
-                  title: Text('Booking for: ${user?['displayName'] ?? user?['email'] ?? 'Unknown'}'),
-                  subtitle: Text('Phone: ${user?['phone'] ?? 'N/A'}\nEmail: ${user?['email'] ?? 'N/A'}'),
-                  trailing: IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red),
-                    onPressed: () async {
-                      await FirebaseFirestore.instance.collection('bookings').doc(booking.id).delete();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l10n('Booking deleted'))),
-                      );
-                    },
-                  ),
-                  onTap: () => _showBookingDetailsWithUser(booking, user),
-                );
-              },
-            );
-          },
-        );
       },
     );
   }

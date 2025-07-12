@@ -12,6 +12,8 @@ import '../screens/user_management_screen.dart';
 import '../screens/analytics_dashboard_screen.dart';
 import '../screens/message_template_management_screen.dart';
 import '../screens/periodic_alert_scheduler_screen.dart';
+import '../screens/whatsapp_config_screen.dart';
+import '../screens/notification_history_screen.dart';
 
 class AdminDrawer extends StatelessWidget {
   const AdminDrawer({super.key});
@@ -139,6 +141,26 @@ class AdminDrawer extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const PeriodicAlertSchedulerScreen()),
+              );
+            },
+          ),
+          // WhatsApp Configuration
+          ListTile(
+            leading: const Icon(Icons.message),
+            title: const Text('WhatsApp Configuration'),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const WhatsAppConfigScreen()),
+              );
+            },
+          ),
+          // Notification History
+          ListTile(
+            leading: const Icon(Icons.history),
+            title: const Text('Notification History'),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NotificationHistoryScreen()),
               );
             },
           ),

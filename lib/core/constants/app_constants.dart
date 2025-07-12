@@ -14,10 +14,20 @@ class AppConstants {
   static const String whatsappApiBaseUrl = 'https://api.whatsapp.com/v1/';
   static const String razorpayKeyId = 'rzp_test_KO5xeVD1vkxq42'; // Replace with your actual Razorpay test key
   
+  static const String whatsappApiUrl = 'https://rpayconnect.com/api/create-message';
+  static const String whatsappAppKey = '128522ac-989f-4e26-a820-9c9a54504cfc'; // Replace with your app key
+  static const String whatsappAuthKey = 'KkNAIC3mVlPrWsDgNvfo4EwFI7CP6leYpsfeVOSVp7HavKcEnm'; // Replace with your auth key
+  
+  // Support Contact Information
+  static const String supportPhone = '+91 9876543210'; // Replace with your actual support phone
+  static const String supportEmail = 'support@beeman.com'; // Replace with your actual support email
+  static const String supportAddress = 'Mumbai, Maharashtra, India';
+  
   // Collection Names
   static const String usersCollection = 'users';
   static const String beeBoxesCollection = 'bee_boxes';
   static const String bookingsCollection = 'bookings';
+  static const String notificationsCollection = 'notifications';
   
   // Booking Constants
   static const int depositPercentage = 60; // 60% deposit required
@@ -46,13 +56,43 @@ class AppConstants {
   
   // WhatsApp Message Templates
   static const String bookingConfirmationTemplate = 
-      'Thank you for booking with BeeMan! Your booking details:\n'
-      'Crop: {crop}\n'
-      'Start Date: {startDate}\n'
-      'End Date: {endDate}\n'
-      'Total Amount Paid: ₹{amount}\n'
-      'Boxes: {boxes}\n\n'
-      'For support, contact: +91 9876543210';
+      '🐝 *BeeMan Booking Confirmation*\n\n'
+      'Hello {userName},\n\n'
+      'Your bee box booking has been confirmed!\n\n'
+      '📋 *Booking Details:*\n'
+      '• Crop: {crop}\n'
+      '• Start Date: {startDate}\n'
+      '• End Date: {endDate}\n'
+      '• Number of Boxes: {boxes}\n'
+      '• Total Amount Paid: ₹{amount}\n\n'
+      '📞 For support: {supportContact}\n\n'
+      'Thank you for choosing BeeMan! 🌸';
+  
+  static const String periodicReminderTemplate = 
+      '🐝 *BeeMan Pollination Reminder*\n\n'
+      'Hello {userName},\n\n'
+      'Your bee boxes are active for {crop} pollination.\n\n'
+      '📅 Day {dayNumber} of your booking\n'
+      '📋 Crop: {crop}\n'
+      '📦 Boxes: {boxes}\n\n'
+      '💡 *Care Tips:*\n'
+      '• Ensure adequate water supply\n'
+      '• Avoid pesticide use during pollination\n'
+      '• Monitor bee activity\n\n'
+      '📞 Support: {supportContact}';
+  
+  static const String harvestAlertTemplate = 
+      '🌾 *BeeMan Harvest Alert*\n\n'
+      'Hello {userName},\n\n'
+      'Your pollination period for {crop} is ending soon.\n\n'
+      '📅 End Date: {endDate}\n'
+      '📋 Crop: {crop}\n'
+      '📦 Boxes: {boxes}\n\n'
+      '⚠️ *Important:*\n'
+      '• Prepare for bee box collection\n'
+      '• Complete any pending payments\n'
+      '• Contact us for extension if needed\n\n'
+      '📞 Support: {supportContact}';
   
   // Admin Settings
   static const int maxGridRows = 10;

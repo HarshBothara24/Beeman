@@ -13,8 +13,27 @@ import 'booking_management_screen.dart';
 import 'user_management_screen.dart';
 import 'payment_management_screen.dart';
 
-class AdminDashboardScreen extends StatelessWidget {
+class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
+
+  @override
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  late Future<QuerySnapshot> _bookingsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _bookingsFuture = FirebaseFirestore.instance.collection('bookings').get();
+  }
+
+  void _refreshStats() {
+    setState(() {
+      _bookingsFuture = FirebaseFirestore.instance.collection('bookings').get();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +49,11 @@ class AdminDashboardScreen extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh Stats',
+            onPressed: _refreshStats,
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => _confirmSignOut(context),
@@ -133,14 +157,14 @@ class AdminDashboardScreen extends StatelessWidget {
                     } else if (width > 600) {
                       crossAxisCount = 3;
                     }
-                    return StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance.collection('bookings').snapshots(),
+                    return FutureBuilder<QuerySnapshot>(
+                      future: _bookingsFuture,
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
                           return Center(child: CircularProgressIndicator());
                         }
                         if (snapshot.hasError) {
-                          return Center(child: Text('Error: ${snapshot.error}'));
+                          return Center(child: Text('Error:  {snapshot.error}'));
                         }
                         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                           return Center(child: Text('No bookings found.'));
