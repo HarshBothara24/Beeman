@@ -5,7 +5,7 @@ class AppTheme {
   AppTheme._();
   
   // Brand Colors
-  static const Color primaryColor = Color(0xFFFFB800); // Bee Yellow
+  static const Color primaryColor = Color(0xFFFFB300); // Bee Yellow
   static const Color secondaryColor = Color(0xFF333333); // Dark Gray
   static const Color accentColor = Color(0xFF4CAF50); // Green for available
   

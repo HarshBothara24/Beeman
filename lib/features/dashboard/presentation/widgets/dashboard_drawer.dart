@@ -5,6 +5,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
+import '../../../auth/presentation/screens/language_selection_screen.dart';
 import '../../../booking/presentation/screens/bee_box_selection_screen.dart';
 import '../../../booking/presentation/screens/my_bookings_screen.dart';
 import '../../../payment/presentation/screens/payment_history_screen.dart';
@@ -31,13 +32,9 @@ class DashboardDrawer extends StatelessWidget {
           UserAccountsDrawerHeader(
             accountName: Text(
               user?.displayName ?? 'User',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            accountEmail: Text(
-              user?.email ?? 'user@example.com',
-            ),
+            accountEmail: Text(user?.email ?? 'user@example.com'),
             currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
               child: Text(
@@ -49,9 +46,7 @@ class DashboardDrawer extends StatelessWidget {
                 ),
               ),
             ),
-            decoration: const BoxDecoration(
-              color: AppTheme.primaryColor,
-            ),
+            decoration: const BoxDecoration(color: AppTheme.primaryColor),
           ),
           // Home
           ListTile(
@@ -68,9 +63,9 @@ class DashboardDrawer extends StatelessWidget {
             leading: const Icon(Icons.person),
             title: Text(_getProfileText(selectedLanguage)),
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
             },
           ),
           // Book Bee Boxes
@@ -116,9 +111,9 @@ class DashboardDrawer extends StatelessWidget {
               // Navigator.of(context).push(
               //   MaterialPageRoute(builder: (_) => const SupportScreen()),
               // );
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Coming soon!'))
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Coming soon!')));
             },
           ),
           const Divider(),
@@ -131,6 +126,20 @@ class DashboardDrawer extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
+          ),
+          // Language Selection
+          ListTile(
+            leading: const Icon(Icons.language),
+            title: Text(_getLanguageText(selectedLanguage)),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const LanguageSelectionScreen(),
+                ),
               );
             },
           ),
@@ -158,23 +167,27 @@ class DashboardDrawer extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmSignOut(BuildContext context, String languageCode) async {
+  Future<void> _confirmSignOut(
+    BuildContext context,
+    String languageCode,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_getSignOutText(languageCode)),
-        content: Text(_getSignOutConfirmationText(languageCode)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(_getCancelText(languageCode)),
+      builder:
+          (context) => AlertDialog(
+            title: Text(_getSignOutText(languageCode)),
+            content: Text(_getSignOutConfirmationText(languageCode)),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(_getCancelText(languageCode)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(_getSignOutText(languageCode)),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(_getSignOutText(languageCode)),
-          ),
-        ],
-      ),
     );
 
     if (confirmed == true && context.mounted) {
@@ -299,6 +312,17 @@ class DashboardDrawer extends StatelessWidget {
         return 'रद्द करा';
       default:
         return 'Cancel';
+    }
+  }
+
+  String _getLanguageText(String languageCode) {
+    switch (languageCode) {
+      case AppConstants.hindi:
+        return 'भाषा';
+      case AppConstants.marathi:
+        return 'भाषा';
+      default:
+        return 'Language';
     }
   }
 }

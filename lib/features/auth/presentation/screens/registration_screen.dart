@@ -19,98 +19,41 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _farmerNameController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _otpController = TextEditingController();
+  final TextEditingController _phoneController =
+      TextEditingController(); // Added
+  final TextEditingController _locationController =
+      TextEditingController(); // Added
+  final TextEditingController _passwordController =
+      TextEditingController(); // Added
 
-  bool _isOTPSent = false;
   bool _isLoading = false;
-  String? _verificationId;
 
   @override
   void dispose() {
     _farmerNameController.dispose();
     _usernameController.dispose();
-    _phoneController.dispose();
     _emailController.dispose();
-    _otpController.dispose();
+    _phoneController.dispose(); // Added
+    _locationController.dispose(); // Added
+    _passwordController.dispose(); // Added
     super.dispose();
   }
 
   Future<bool> _isEmailAlreadyUsed(String email) async {
-    final query = await FirebaseFirestore.instance
-        .collection('users')
-        .where('email', isEqualTo: email)
-        .limit(1)
-        .get();
+    final query =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: email)
+            .limit(1)
+            .get();
     return query.docs.isNotEmpty;
   }
 
-  void _sendOTP() async {
-    final phone = '+91${_phoneController.text.trim()}';
-    final phoneRegex = RegExp(r'^\+\d{10,15}$'); // Accepts +<country_code><number>
-
-    if (!phoneRegex.hasMatch(phone)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter valid phone number with country code (e.g. +919876543210)')),
-      );
-      return;
-    }
-
-    if (_phoneController.text.trim().length != 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid 10-digit phone number')),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    await fb_auth.FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: phone,
-      verificationCompleted: (fb_auth.PhoneAuthCredential credential) async {},
-      verificationFailed: (fb_auth.FirebaseAuthException e) {
-        setState(() => _isLoading = false);
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Verification failed: ${e.message}')),
-        );
-      },
-      codeSent: (String verificationId, int? resendToken) {
-        setState(() {
-          _isOTPSent = true;
-          _verificationId = verificationId;
-          _isLoading = false;
-        });
-        if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('OTP sent!')),
-        );
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {
-        _verificationId = verificationId;
-      },
-    );
-  }
-
   void _register() async {
-    if (!_isOTPSent) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please request and enter the OTP')),
-      );
-      return;
-    }
-
     if (_formKey.currentState?.validate() ?? false) {
-      final smsCode = _otpController.text.trim();
       final email = _emailController.text.trim();
-
-      if (_verificationId == null || smsCode.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enter the OTP')),
-        );
-        return;
-      }
+      final password = _passwordController.text; // Added
 
       setState(() => _isLoading = true);
 
@@ -126,24 +69,24 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           return;
         }
 
-        final credential = fb_auth.PhoneAuthProvider.credential(
-          verificationId: _verificationId!,
-          smsCode: smsCode,
-        );
-
-        final userCred = await fb_auth.FirebaseAuth.instance.signInWithCredential(credential);
+        // Use createUserWithEmailAndPassword instead of signInWithEmailAndPassword
+        final userCred = await fb_auth.FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
         final user = userCred.user;
 
         if (user != null) {
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-            'farmerName': _farmerNameController.text.trim(),
-            'username': _usernameController.text.trim(),
-            'phone': _phoneController.text.trim(),
-            'address': '', // Address empty at registration
-            'email': _emailController.text.trim(),
-            'uid': user.uid,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({
+                'farmerName': _farmerNameController.text.trim(),
+                'username': _usernameController.text.trim(),
+                'email': _emailController.text.trim(),
+                'phone': _phoneController.text.trim(),
+                'address': _locationController.text.trim(),
+                'uid': user.uid,
+                'createdAt': FieldValue.serverTimestamp(),
+              });
 
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -157,9 +100,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         }
       } catch (e) {
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('OTP verification failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Registration failed: $e')));
       }
 
       setState(() => _isLoading = false);
@@ -177,7 +120,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           padding: const EdgeInsets.all(24.0),
           child: Card(
             elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
@@ -206,55 +151,90 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed: _isLoading
-                          ? null
-                          : () async {
-                              print('Google sign-in button pressed'); // Debug print
-                              setState(() => _isLoading = true);
-                              try {
-                                final success = await authProvider.signInWithGoogle();
-                                print('signInWithGoogle returned: $success'); // Debug print
-                                if (success && context.mounted) {
-                                  // Write user data to Firestore
-                                  final user = authProvider.user;
-                                  if (user != null) {
-                                    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-                                      'email': user.email,
-                                      'displayName': user.displayName,
-                                      'uid': user.uid,
-                                      'photoURL': user.photoURL,
-                                      'phone': '', // Require completion
-                                      'address': '', // Require completion
-                                      'createdAt': FieldValue.serverTimestamp(),
-                                    }, SetOptions(merge: true));
-                                  }
-                                  // After Google sign-in, check if phone or address is missing and redirect to ProfileScreen
-                                  final userDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
-                                  final data = userDoc.data();
-                                  if (data == null || (data['phone'] == null || data['phone'].toString().isEmpty) || (data['address'] == null || data['address'].toString().isEmpty)) {
-                                    if (context.mounted) {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(builder: (context) => const ProfileScreen()),
-                                      );
-                                      return;
+                      onPressed:
+                          _isLoading
+                              ? null
+                              : () async {
+                                print(
+                                  'Google sign-in button pressed',
+                                ); // Debug print
+                                setState(() => _isLoading = true);
+                                try {
+                                  final success =
+                                      await authProvider.signInWithGoogle();
+                                  print(
+                                    'signInWithGoogle returned: $success',
+                                  ); // Debug print
+                                  if (success && context.mounted) {
+                                    // Write user data to Firestore
+                                    final user = authProvider.user;
+                                    if (user != null) {
+                                      await FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(user.uid)
+                                          .set({
+                                            'email': user.email,
+                                            'displayName': user.displayName,
+                                            'uid': user.uid,
+                                            'photoURL': user.photoURL,
+                                            'phone': '', // Require completion
+                                            'address': '', // Require completion
+                                            'createdAt':
+                                                FieldValue.serverTimestamp(),
+                                          }, SetOptions(merge: true));
                                     }
+                                    // After Google sign-in, check if phone or address is missing and redirect to ProfileScreen
+                                    final userDoc =
+                                        await FirebaseFirestore.instance
+                                            .collection('users')
+                                            .doc(user!.uid)
+                                            .get();
+                                    final data = userDoc.data();
+                                    if (data == null ||
+                                        (data['phone'] == null ||
+                                            data['phone'].toString().isEmpty) ||
+                                        (data['address'] == null ||
+                                            data['address']
+                                                .toString()
+                                                .isEmpty)) {
+                                      if (context.mounted) {
+                                        Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder:
+                                                (context) =>
+                                                    const ProfileScreen(),
+                                          ),
+                                        );
+                                        return;
+                                      }
+                                    }
+                                    // Navigate to dashboard
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) =>
+                                                const DashboardScreen(),
+                                      ),
+                                    );
+                                  } else if (context.mounted) {
+                                    print(
+                                      'Google sign-in failed: ${authProvider.errorMessage}',
+                                    ); // Debug print
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          authProvider.errorMessage,
+                                        ),
+                                      ),
+                                    );
                                   }
-                                  // Navigate to dashboard
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const DashboardScreen()),
-                                  );
-                                } else if (context.mounted) {
-                                  print('Google sign-in failed: ${authProvider.errorMessage}'); // Debug print
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(authProvider.errorMessage)),
-                                  );
+                                } finally {
+                                  if (mounted)
+                                    setState(() => _isLoading = false);
                                 }
-                              } finally {
-                                if (mounted) setState(() => _isLoading = false);
-                              }
-                            },
+                              },
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -279,8 +259,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             labelText: "Farmer's Name",
                             border: OutlineInputBorder(),
                           ),
-                          validator: (value) =>
-                              value == null || value.isEmpty ? 'Enter farmer\'s name' : null,
+                          validator:
+                              (value) =>
+                                  value == null || value.isEmpty
+                                      ? 'Enter farmer\'s name'
+                                      : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
@@ -289,40 +272,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             labelText: 'Username',
                             border: OutlineInputBorder(),
                           ),
-                          validator: (value) =>
-                              value == null || value.isEmpty ? 'Enter username' : null,
+                          validator:
+                              (value) =>
+                                  value == null || value.isEmpty
+                                      ? 'Enter username'
+                                      : null,
                         ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          decoration: InputDecoration(
-                            labelText: 'Phone Number',
-                            border: const OutlineInputBorder(),
-                            prefixText: '+91 ',
-                            suffixIcon: !_isOTPSent
-                                ? TextButton(
-                                    onPressed: _sendOTP,
-                                    child: const Text('Send Code'),
-                                  )
-                                : null,
-                          ),
-                          validator: (value) =>
-                              value == null || value.isEmpty ? 'Enter phone number' : null,
-                        ),
-                        if (_isOTPSent) ...[
-                          const SizedBox(height: 16),
-                          TextFormField(
-                            controller: _otpController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Verification Code',
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (value) =>
-                                value == null || value.isEmpty ? 'Enter verification code' : null,
-                          ),
-                        ],
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _emailController,
@@ -331,8 +286,54 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                             labelText: 'Email',
                             border: OutlineInputBorder(),
                           ),
-                          validator: (value) =>
-                              value == null || value.isEmpty ? 'Enter email' : null,
+                          validator:
+                              (value) =>
+                                  value == null || value.isEmpty
+                                      ? 'Enter email'
+                                      : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Password',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator:
+                              (value) =>
+                                  value == null || value.isEmpty
+                                      ? 'Enter password'
+                                      : value.length < 6
+                                      ? 'Password must be at least 6 characters'
+                                      : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'Mobile Number',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator:
+                              (value) =>
+                                  value == null || value.isEmpty
+                                      ? 'Enter mobile number'
+                                      : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _locationController,
+                          decoration: const InputDecoration(
+                            labelText: 'Location',
+                            border: OutlineInputBorder(),
+                          ),
+                          validator:
+                              (value) =>
+                                  value == null || value.isEmpty
+                                      ? 'Enter location'
+                                      : null,
                         ),
                         const SizedBox(height: 24),
                         SizedBox(

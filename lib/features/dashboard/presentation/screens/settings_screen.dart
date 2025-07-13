@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/screens/language_selection_screen.dart'; // Fix import
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -25,11 +26,31 @@ class SettingsScreen extends StatelessWidget {
             leading: const Icon(Icons.language),
             title: Text(_getLanguageText(selectedLanguage)),
             subtitle: Text(_getCurrentLanguage(selectedLanguage)),
-            onTap: () => _showLanguageDialog(context, selectedLanguage),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (_) => const LanguageSelectionScreen(), // Fix class name
+                ),
+              );
+            },
           ),
           const Divider(),
           // Add more settings here
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'language_fab_settings',
+        backgroundColor: AppTheme.primaryColor,
+        child: const Icon(Icons.language, color: Colors.white),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
+          );
+        },
+        tooltip: 'Change Language',
       ),
     );
   }
@@ -37,17 +58,18 @@ class SettingsScreen extends StatelessWidget {
   void _showLanguageDialog(BuildContext context, String currentLanguage) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_getSelectLanguageText(currentLanguage)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildLanguageOption(context, 'English', AppConstants.english),
-            _buildLanguageOption(context, 'हिंदी', AppConstants.hindi),
-            _buildLanguageOption(context, 'मराठी', AppConstants.marathi),
-          ],
-        ),
-      ),
+      builder:
+          (context) => AlertDialog(
+            title: Text(_getSelectLanguageText(currentLanguage)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildLanguageOption(context, 'English', AppConstants.english),
+                _buildLanguageOption(context, 'हिंदी', AppConstants.hindi),
+                _buildLanguageOption(context, 'मराठी', AppConstants.marathi),
+              ],
+            ),
+          ),
     );
   }
 
@@ -57,7 +79,10 @@ class SettingsScreen extends StatelessWidget {
 
     return ListTile(
       title: Text(title),
-      trailing: isSelected ? const Icon(Icons.check, color: AppTheme.primaryColor) : null,
+      trailing:
+          isSelected
+              ? const Icon(Icons.check, color: AppTheme.primaryColor)
+              : null,
       onTap: () {
         authProvider.setLanguage(code);
         Navigator.pop(context);

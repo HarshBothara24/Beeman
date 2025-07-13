@@ -490,7 +490,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
               DataColumn(label: Text('Actions')),
             ],
             rows: filteredBookings.map((booking) {
-              final data = booking.data() as Map<String, dynamic>;
+            final data = booking.data() as Map<String, dynamic>;
               final bookingId = booking.id;
               final userName = data['userName'] ?? '';
               final userPhone = data['userPhone'] ?? '';
@@ -521,7 +521,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
                     IconButton(
                       icon: const Icon(Icons.message, color: Colors.green),
                       tooltip: 'Send WhatsApp',
-                      onPressed: () async {
+                    onPressed: () async {
                         final message =
                             '🟡 *BeeMan Booking Update*\n\n'
                             'Hello $userName,\n\n'
@@ -534,11 +534,11 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
                           userId: data['userId'] ?? '',
                           bookingId: bookingId,
                         );
-                        ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text(sent ? 'WhatsApp message sent!' : 'Failed to send WhatsApp message.')),
-                        );
-                      },
-                    ),
+                      );
+                    },
+                  ),
                     IconButton(
                       icon: const Icon(Icons.info_outline, color: Colors.blue),
                       tooltip: 'View Details',

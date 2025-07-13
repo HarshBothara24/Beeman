@@ -34,7 +34,7 @@ class SupportScreen extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimaryColor,
+                  color: Colors.black,
                 ),
               ),
               const SizedBox(height: 16),
@@ -65,7 +65,7 @@ class SupportScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: SupportCard(
-                      icon: Icons.whatsapp,
+                      icon: Icons.chat,
                       title: _getWhatsAppText(selectedLanguage),
                       subtitle: AppConstants.supportPhone,
                       onTap: () => _launchWhatsApp(AppConstants.supportPhone),
@@ -89,7 +89,7 @@ class SupportScreen extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimaryColor,
+                  color: Colors.black,
                 ),
               ),
               const SizedBox(height: 16),
@@ -125,7 +125,7 @@ class SupportScreen extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimaryColor,
+                  color: Colors.black,
                 ),
               ),
               const SizedBox(height: 16),
@@ -133,7 +133,7 @@ class SupportScreen extends StatelessWidget {
                 _getAboutUsDescriptionText(selectedLanguage),
                 style: const TextStyle(
                   fontSize: 14,
-                  color: AppTheme.textSecondaryColor,
+                  color: Colors.grey,
                 ),
               ),
               const SizedBox(height: 32),

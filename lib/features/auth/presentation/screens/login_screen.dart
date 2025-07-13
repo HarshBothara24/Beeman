@@ -122,12 +122,80 @@ class _LoginScreenState extends State<LoginScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 48),
-                // Google Sign In Button
-                Container(
-                  constraints: const BoxConstraints(maxWidth: 500),
+                // Sign-in form section (redesigned)
+                Center(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 400),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                        const SizedBox(height: 16),
+                        TextField(
+                          decoration: InputDecoration(
+                            labelText: 'Email',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          obscureText: true,
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: false,
+                              onChanged: (v) {},
+                            ),
+                            const Text('Remember me'),
+                            const Spacer(),
+                            GestureDetector(
+                              onTap: () {},
+                              child: Text(
+                                'Forgot your password?',
+                                style: TextStyle(
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: () {},
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Sign in',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: const [
+                            Expanded(child: Divider()),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8.0),
+                              child: Text('Or continue with'),
+                            ),
+                            Expanded(child: Divider()),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
                       CustomButton(
                         text: _getGoogleSignInText(selectedLanguage),
                         icon: Image.asset(
@@ -142,23 +210,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderColor: AppTheme.border,
                       ),
                       const SizedBox(height: 16),
-                      CustomButton(
-                        text: _getPhoneSignInText(selectedLanguage),
-                        icon: const Icon(
-                          Icons.phone,
-                          color: Colors.white,
-                        ),
-                        onPressed: _isLoading ? null : () {
-                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                          authProvider.signInWithPhone(context);
-                        },
-                        isLoading: false,
-                        backgroundColor: AppTheme.primaryColor,
-                        textColor: Colors.white,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () {
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('Don\'t have an account? '),
+                            GestureDetector(
+                              onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -166,37 +223,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           );
                         },
-                        child: const Text('Registration Page'),
-                      ),
-                      if (authProvider.status == AuthStatus.emailNotVerified)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16.0),
-                          child: Column(
-                            children: [
-                              const Text(
-                                'Please verify your email and then click below:',
-                                style: TextStyle(color: Colors.red),
+                              child: Text(
+                                'Create a new account',
+                                style: TextStyle(
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.underline,
+                                ),
                               ),
-                              const SizedBox(height: 8),
-                              ElevatedButton(
-                                onPressed: () async {
-                                  final verified = await authProvider.reloadAndCheckEmailVerified();
-                                  if (verified && mounted) {
-                                    Navigator.of(context).pushReplacement(
-                                      MaterialPageRoute(builder: (_) => const DashboardScreen()),
-                                    );
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Email not verified yet. Please check your inbox.')),
-                                    );
-                                  }
-                                },
-                                child: const Text('I have verified my email'),
                               ),
                             ],
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -312,17 +351,6 @@ class _LoginScreenState extends State<LoginScreen> {
         return 'Google सह सुरू ठेवा';
       default:
         return 'Continue with Google';
-    }
-  }
-
-  String _getPhoneSignInText(String languageCode) {
-    switch (languageCode) {
-      case AppConstants.hindi:
-        return 'फोन नंबर के साथ जारी रखें';
-      case AppConstants.marathi:
-        return 'फोन नंबरसह सुरू ठेवा';
-      default:
-        return 'Continue with Phone';
     }
   }
 

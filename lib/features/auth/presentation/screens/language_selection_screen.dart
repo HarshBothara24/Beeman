@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:easy_localization/easy_localization.dart';
+
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../providers/auth_provider.dart';
 import 'registration_screen.dart';
-import 'package:easy_localization/easy_localization.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
   const LanguageSelectionScreen({super.key});
 
   @override
-  State<LanguageSelectionScreen> createState() => _LanguageSelectionScreenState();
+  State<LanguageSelectionScreen> createState() =>
+      _LanguageSelectionScreenState();
 }
 
 class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
@@ -32,9 +35,9 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   color: AppTheme.primaryColor,
                 ),
                 const SizedBox(height: 32),
-                const Text(
+                Text(
                   'select_language'.tr(),
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
@@ -48,17 +51,9 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   'English',
                 ),
                 const SizedBox(height: 16),
-                _buildLanguageButton(
-                  'हिंदी',
-                  AppConstants.hindi,
-                  'Hindi',
-                ),
+                _buildLanguageButton('हिंदी', AppConstants.hindi, 'Hindi'),
                 const SizedBox(height: 16),
-                _buildLanguageButton(
-                  'मराठी',
-                  AppConstants.marathi,
-                  'Marathi',
-                ),
+                _buildLanguageButton('मराठी', AppConstants.marathi, 'Marathi'),
                 const SizedBox(height: 40),
                 SizedBox(
                   width: double.infinity,
@@ -71,9 +66,9 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'continue'.tr(),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -100,7 +95,8 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
-          color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : null,
+          color:
+              isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : null,
         ),
         child: Row(
           children: [
@@ -111,7 +107,8 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                   title,
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
                 Text(
@@ -125,10 +122,7 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
             ),
             const Spacer(),
             if (isSelected)
-              const Icon(
-                Icons.check_circle,
-                color: AppTheme.primaryColor,
-              ),
+              const Icon(Icons.check_circle, color: AppTheme.primaryColor),
           ],
         ),
       ),
@@ -138,11 +132,18 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
   void _continueWithLanguage() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     authProvider.setLanguage(_selectedLanguage);
-    // Set the app locale using easy_localization
     context.setLocale(Locale(_selectedLanguage));
-    // Navigate to registration screen after language selection
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const RegistrationScreen()),
-    );
+    // Navigate based on authentication status
+    if (authProvider.user != null) {
+      // User is logged in, go to dashboard
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+      );
+    } else {
+      // Not logged in, go to registration
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const RegistrationScreen()),
+      );
+    }
   }
 }

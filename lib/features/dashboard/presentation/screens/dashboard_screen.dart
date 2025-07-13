@@ -5,6 +5,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
+import '../../../auth/presentation/screens/language_selection_screen.dart';
 import '../../../booking/presentation/screens/bee_box_selection_screen.dart';
 import '../../../booking/presentation/screens/my_bookings_screen.dart';
 import '../../../payment/presentation/screens/payment_history_screen.dart';
@@ -38,7 +39,9 @@ class DashboardScreen extends StatelessWidget {
                 // Section: Welcome
                 Card(
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Row(
@@ -47,8 +50,13 @@ class DashboardScreen extends StatelessWidget {
                           radius: 32,
                           backgroundColor: AppTheme.primaryColor,
                           child: Text(
-                            user?.displayName?.substring(0, 1).toUpperCase() ?? 'U',
-                            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
+                            user?.displayName?.substring(0, 1).toUpperCase() ??
+                                'U',
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 20),
@@ -58,12 +66,18 @@ class DashboardScreen extends StatelessWidget {
                             children: [
                               Text(
                                 user?.displayName ?? 'User',
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 user?.email ?? '',
-                                style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppTheme.textSecondary,
+                                ),
                               ),
                             ],
                           ),
@@ -76,7 +90,11 @@ class DashboardScreen extends StatelessWidget {
                 // Section: Quick Actions
                 const Text(
                   'Quick Actions',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 LayoutBuilder(
@@ -105,7 +123,9 @@ class DashboardScreen extends StatelessWidget {
                         ),
                         _animatedFeatureCard(
                           title: _getMyBookingsText(selectedLanguage),
-                          subtitle: _getMyBookingsSubtitleText(selectedLanguage),
+                          subtitle: _getMyBookingsSubtitleText(
+                            selectedLanguage,
+                          ),
                           icon: Icons.history,
                           color: Colors.green,
                           onTap: () {
@@ -148,7 +168,11 @@ class DashboardScreen extends StatelessWidget {
                 // Section: Info
                 const Text(
                   'Your Activity',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 // Add more user activity widgets here as needed
@@ -156,6 +180,18 @@ class DashboardScreen extends StatelessWidget {
             ),
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'language_fab',
+        backgroundColor: AppTheme.primaryColor,
+        child: const Icon(Icons.language, color: Colors.white),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
+          );
+        },
+        tooltip: 'Change Language',
       ),
     );
   }
@@ -219,9 +255,7 @@ class DashboardScreen extends StatelessWidget {
   void _navigateToBooking(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => const BeeBoxSelectionScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const BeeBoxSelectionScreen()),
     );
   }
 

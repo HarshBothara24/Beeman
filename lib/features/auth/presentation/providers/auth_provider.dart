@@ -225,53 +225,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Phone sign-in with OTP (real Firebase logic)
-  Future<void> signInWithPhone(BuildContext context) async {
-    String? phoneNumber = await showDialog(
-      context: context,
-      builder: (context) => const PhoneNumberDialog(),
-    );
-    if (phoneNumber == null || phoneNumber.isEmpty) return;
-
-    fb_auth.FirebaseAuth auth = fb_auth.FirebaseAuth.instance;
-
-    await auth.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
-      verificationCompleted: (fb_auth.PhoneAuthCredential credential) async {
-        final userCredential = await auth.signInWithCredential(credential);
-        final user = userCredential.user;
-        if (user != null) {
-          await _createUserInFirestore(user);
-        }
-        // Auth state change will be picked up by the listener
-      },
-      verificationFailed: (fb_auth.FirebaseAuthException e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Verification failed: ${e.message}')),
-        );
-      },
-      codeSent: (String verificationId, int? resendToken) async {
-        String? smsCode = await showDialog(
-          context: context,
-          builder: (context) => const OTPDialog(),
-        );
-        if (smsCode == null || smsCode.isEmpty) return;
-
-        fb_auth.PhoneAuthCredential credential = fb_auth.PhoneAuthProvider.credential(
-          verificationId: verificationId,
-          smsCode: smsCode,
-        );
-        final userCredential = await auth.signInWithCredential(credential);
-        final user = userCredential.user;
-        if (user != null) {
-          await _createUserInFirestore(user);
-        }
-        // Auth state change will be picked up by the listener
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {},
-    );
-  }
-
   // Helper to create user in Firestore
   Future<void> _createUserInFirestore(fb_auth.User user) async {
     try {
@@ -285,70 +238,5 @@ class AuthProvider extends ChangeNotifier {
     } catch (e) {
       print('Firestore user creation error: $e');
     }
-  }
-}
-
-// Dialog for entering phone number
-class PhoneNumberDialog extends StatefulWidget {
-  const PhoneNumberDialog({super.key});
-
-  @override
-  State<PhoneNumberDialog> createState() => _PhoneNumberDialogState();
-}
-
-class _PhoneNumberDialogState extends State<PhoneNumberDialog> {
-  final TextEditingController _controller = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Enter Phone Number'),
-      content: TextField(
-        controller: _controller,
-        keyboardType: TextInputType.phone,
-        decoration: const InputDecoration(
-          labelText: 'Phone Number',
-          hintText: '+91XXXXXXXXXX',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: const Text('Continue'),
-        ),
-      ],
-    );
-  }
-}
-
-// Dialog for entering OTP
-class OTPDialog extends StatefulWidget {
-  const OTPDialog({super.key});
-
-  @override
-  State<OTPDialog> createState() => _OTPDialogState();
-}
-
-class _OTPDialogState extends State<OTPDialog> {
-  final TextEditingController _controller = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Enter OTP'),
-      content: TextField(
-        controller: _controller,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(
-          labelText: 'OTP',
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(_controller.text),
-          child: const Text('Verify'),
-        ),
-      ],
-    );
   }
 }
