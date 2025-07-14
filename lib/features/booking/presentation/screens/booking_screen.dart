@@ -20,7 +20,16 @@ class BookingScreen extends StatefulWidget {
 
 class _BookingScreenState extends State<BookingScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _cropController = TextEditingController();
+  // Crop dropdown state
+  final List<String> _cropKeys = [
+    'crop_pomegranate',
+    'crop_watermelon',
+    'crop_mango',
+    'crop_muskmelon',
+    'crop_onion_seeds',
+    'crop_jujube',
+  ];
+  String? _selectedCropKey;
   final _locationController = TextEditingController();
   final _phoneController = TextEditingController();
   final _notesController = TextEditingController();
@@ -68,7 +77,6 @@ class _BookingScreenState extends State<BookingScreen> {
 
   @override
   void dispose() {
-    _cropController.dispose();
     _locationController.dispose();
     _phoneController.dispose();
     _notesController.dispose();
@@ -146,14 +154,24 @@ class _BookingScreenState extends State<BookingScreen> {
                         ),
                         const SizedBox(height: 12),
                         // Crop field
-                        TextFormField(
-                          controller: _cropController,
+                        DropdownButtonFormField<String>(
+                          value: _selectedCropKey,
+                          isExpanded: true,
                           decoration: InputDecoration(
                             labelText: _getCropLabelText(selectedLanguage),
                             hintText: _getCropHintText(selectedLanguage),
                             border: const OutlineInputBorder(),
                             prefixIcon: const Icon(Icons.grass),
                           ),
+                          items: _cropKeys.map((key) => DropdownMenuItem<String>(
+                            value: key,
+                            child: Text(_getCropText(key, selectedLanguage)),
+                          )).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedCropKey = value;
+                            });
+                          },
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return _getRequiredFieldText(selectedLanguage);
@@ -378,7 +396,7 @@ class _BookingScreenState extends State<BookingScreen> {
           builder: (_) => PaymentScreen(
             bookingDetails: {
               'selectedBoxes': bookingProvider.selectedBoxes.toList(),
-              'crop': _cropController.text,
+              'crop': _selectedCropKey != null ? _getCropText(_selectedCropKey!, languageCode) : '',
               'location': _locationController.text,
               'phone': _phoneController.text,
               'startDate': _startDate!,
@@ -690,6 +708,50 @@ class _BookingScreenState extends State<BookingScreen> {
         return 'कृपया तारखा निवडा';
       default:
         return 'Please select dates';
+    }
+  }
+
+  // Helper for crop translations
+  String _getCropText(String key, String languageCode) {
+    switch (key) {
+      case 'crop_pomegranate':
+        return languageCode == AppConstants.hindi
+            ? 'अनार'
+            : languageCode == AppConstants.marathi
+                ? 'डाळिंब'
+                : 'Pomegranate';
+      case 'crop_watermelon':
+        return languageCode == AppConstants.hindi
+            ? 'तरबूज'
+            : languageCode == AppConstants.marathi
+                ? 'टरबूज'
+                : 'Watermelon';
+      case 'crop_mango':
+        return languageCode == AppConstants.hindi
+            ? 'आम'
+            : languageCode == AppConstants.marathi
+                ? 'आंबा'
+                : 'Mango';
+      case 'crop_muskmelon':
+        return languageCode == AppConstants.hindi
+            ? 'खरबूजा'
+            : languageCode == AppConstants.marathi
+                ? 'खरबूज'
+                : 'Muskmelon';
+      case 'crop_onion_seeds':
+        return languageCode == AppConstants.hindi
+            ? 'प्याज के बीज'
+            : languageCode == AppConstants.marathi
+                ? 'कांदा बियाणे'
+                : 'Onion Seeds';
+      case 'crop_jujube':
+        return languageCode == AppConstants.hindi
+            ? 'बेर'
+            : languageCode == AppConstants.marathi
+                ? 'बोर'
+                : 'Jujube';
+      default:
+        return key;
     }
   }
 }

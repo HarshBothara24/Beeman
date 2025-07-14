@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:js' as js; // For web Razorpay integration
 import 'dart:convert'; // For JSON parsing
 import 'dart:html' as html; // For web event listener
+import 'package:cloud_firestore/cloud_firestore.dart'; // For Firebase Firestore
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -69,6 +70,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
+  Future<void> _markBoxesAsBooked(String boxTypeId, List<int> bookedIndexes) async {
+    final docRef = FirebaseFirestore.instance.collection('bee_boxes').doc(boxTypeId);
+    final doc = await docRef.get();
+    List<dynamic> currentBooked = [];
+    if (doc.exists && doc.data() != null && doc.data()!.containsKey('bookedIndexes')) {
+      currentBooked = List<dynamic>.from(doc['bookedIndexes']);
+    }
+    final updatedBooked = Set<int>.from(currentBooked).union(Set<int>.from(bookedIndexes)).toList();
+    await docRef.update({'bookedIndexes': updatedBooked});
+  }
+
   Future<void> _handleWebPaymentSuccess(dynamic paymentResponse) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final bookingProvider = Provider.of<BookingProvider>(context, listen: false);
@@ -97,7 +109,30 @@ class _PaymentScreenState extends State<PaymentScreen> {
     try {
       await bookingService.createBooking(booking);
       bookingProvider.addBooking(booking);
-      // Optionally send WhatsApp confirmation here
+      // Mark boxes as booked in bee_boxes collection
+      if (widget.bookingDetails['selectedBoxes'] is List) {
+        // If only one box type
+        final boxTypeId = widget.bookingDetails['boxTypeId'] ?? '';
+        final bookedIndexes = List<int>.from(widget.bookingDetails['selectedBoxes']);
+        if (boxTypeId.isNotEmpty) {
+          await _markBoxesAsBooked(boxTypeId, bookedIndexes);
+        }
+      } else if (widget.bookingDetails['selectedBoxes'] is Map) {
+        // If multiple box types
+        final selectedBoxes = Map<String, dynamic>.from(widget.bookingDetails['selectedBoxes']);
+        for (final entry in selectedBoxes.entries) {
+          final boxTypeId = entry.key;
+          final bookedIndexes = List<int>.from(entry.value);
+          await _markBoxesAsBooked(boxTypeId, bookedIndexes);
+        }
+      }
+      // Send WhatsApp confirmation automatically
+      final sent = await NotificationService.sendBookingConfirmation(booking);
+      if (!sent && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Booking confirmed, but WhatsApp message failed to send.')),
+        );
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to create booking: $e'), backgroundColor: Colors.red),
@@ -418,8 +453,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
     try {
       await bookingService.createBooking(booking);
       bookingProvider.addBooking(booking);
-      
-      // Send WhatsApp confirmation using notification service
+      // Mark boxes as booked in bee_boxes collection
+      if (widget.bookingDetails['selectedBoxes'] is List) {
+        // If only one box type
+        final boxTypeId = widget.bookingDetails['boxTypeId'] ?? '';
+        final bookedIndexes = List<int>.from(widget.bookingDetails['selectedBoxes']);
+        if (boxTypeId.isNotEmpty) {
+          await _markBoxesAsBooked(boxTypeId, bookedIndexes);
+        }
+      } else if (widget.bookingDetails['selectedBoxes'] is Map) {
+        // If multiple box types
+        final selectedBoxes = Map<String, dynamic>.from(widget.bookingDetails['selectedBoxes']);
+        for (final entry in selectedBoxes.entries) {
+          final boxTypeId = entry.key;
+          final bookedIndexes = List<int>.from(entry.value);
+          await _markBoxesAsBooked(boxTypeId, bookedIndexes);
+        }
+      }
+      // Send WhatsApp confirmation automatically
       final sent = await NotificationService.sendBookingConfirmation(booking);
       if (!sent && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

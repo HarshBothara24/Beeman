@@ -26,10 +26,25 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  // Add crop filter state
+  final List<String> _cropKeys = [
+    'crop_pomegranate',
+    'crop_watermelon',
+    'crop_mango',
+    'crop_muskmelon',
+    'crop_onion_seeds',
+    'crop_jujube',
+  ];
+  String? _selectedCropKey;
+
+  // Add a Future to hold the bookings fetch
+  late Future<QuerySnapshot> _bookingsFuture;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _bookingsFuture = _getBookingsFuture();
   }
 
   @override
@@ -39,8 +54,9 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
     super.dispose();
   }
 
-  Stream<QuerySnapshot> _getBookingsStream() {
-    return FirebaseFirestore.instance.collection('bookings').snapshots();
+  // Replace Stream with Future for one-time fetch
+  Future<QuerySnapshot> _getBookingsFuture() {
+    return FirebaseFirestore.instance.collection('bookings').get();
   }
 
   List<DocumentSnapshot> _getFilteredBookings(List<DocumentSnapshot> bookings, String status) {
@@ -59,7 +75,12 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
           (data['crop'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase()) ||
           (data['location'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
 
-      return statusMatch && searchMatch;
+      // Filter by selected crop if set
+      final cropMatch = _selectedCropKey == null || _selectedCropKey!.isEmpty
+        ? true
+        : _getText(_selectedCropKey!).toLowerCase() == (data['crop'] ?? '').toString().toLowerCase();
+
+      return statusMatch && searchMatch && cropMatch;
     }).toList();
   }
 
@@ -304,6 +325,36 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
         'hi': 'कोई बुकिंग नहीं मिली',
         'mr': 'कोणतीही बुकिंग आढळली नाही',
       },
+      'crop_pomegranate': {
+        'en': 'Pomegranate',
+        'hi': 'अनार',
+        'mr': 'डाळिंब',
+      },
+      'crop_watermelon': {
+        'en': 'Watermelon',
+        'hi': 'तरबूज',
+        'mr': 'टरबूज',
+      },
+      'crop_mango': {
+        'en': 'Mango',
+        'hi': 'आम',
+        'mr': 'आंबा',
+      },
+      'crop_muskmelon': {
+        'en': 'Muskmelon',
+        'hi': 'खरबूजा',
+        'mr': 'खरबूज',
+      },
+      'crop_onion_seeds': {
+        'en': 'Onion Seeds',
+        'hi': 'प्याज के बीज',
+        'mr': 'कांदा बियाणे',
+      },
+      'crop_jujube': {
+        'en': 'Jujube',
+        'hi': 'बेर',
+        'mr': 'बोर',
+      },
     };
 
     return textMap[key]?[languageCode] ?? textMap[key]?['en'] ?? key;
@@ -325,6 +376,11 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _refreshBookings,
+          ),
           IconButton(
             icon: const Icon(Icons.download),
             tooltip: 'Export to Excel',
@@ -376,6 +432,40 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            // Crop filter dropdown
+            Row(
+              children: [
+                Text(_getText('crop') + ': '),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    value: _selectedCropKey,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      hintText: _getText('Choose'),
+                      border: OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                    ),
+                    items: [
+                      DropdownMenuItem<String>(
+                        value: null,
+                        child: Text(_getText('Choose')),
+                      ),
+                      ..._cropKeys.map((key) => DropdownMenuItem<String>(
+                        value: key,
+                        child: Text(_getText(key)),
+                      )),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCropKey = value;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
             TabBar(
               controller: _tabController,
@@ -403,7 +493,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
   }
 
   Future<void> _exportBookingsToExcel() async {
-    final snapshot = await _getBookingsStream().first;
+    final snapshot = await _getBookingsFuture();
     final bookings = snapshot.docs;
     if (bookings.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -452,8 +542,8 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
   }
 
   Widget _buildBookingList(String status) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _getBookingsStream(),
+    return FutureBuilder<QuerySnapshot>(
+      future: _bookingsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -693,6 +783,13 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
         ],
       ),
     );
+  }
+
+  // Add a method to refresh bookings
+  void _refreshBookings() {
+    setState(() {
+      _bookingsFuture = _getBookingsFuture();
+    });
   }
 }
 

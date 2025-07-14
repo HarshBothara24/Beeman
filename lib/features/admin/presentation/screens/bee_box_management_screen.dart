@@ -26,7 +26,7 @@ class BeeBoxManagementScreen extends StatefulWidget {
 class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
   final _formKey = GlobalKey<FormState>();
   final _boxIdController = TextEditingController();
-  final _nameController = TextEditingController();
+  String? _selectedSpecies;
   final _statusController = TextEditingController();
   final _priceController = TextEditingController();
   final _notesController = TextEditingController();
@@ -34,6 +34,9 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
   bool _isLoading = false;
   bool _isEditing = false;
   String? _selectedBoxId;
+  List<String> _selectedRows = [];
+  int _currentPage = 1;
+  int _rowsPerPage = 10;
 
   @override
   void initState() {
@@ -59,7 +62,6 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
   @override
   void dispose() {
     _boxIdController.dispose();
-    _nameController.dispose();
     _statusController.dispose();
     _priceController.dispose();
     _notesController.dispose();
@@ -69,7 +71,6 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
 
   void _resetForm() {
     _boxIdController.clear();
-    _nameController.clear();
     _statusController.clear();
     _priceController.clear();
     _notesController.clear();
@@ -85,7 +86,7 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
     setState(() {
       _selectedBoxId = data['id'];
       _boxIdController.text = data['id'];
-      _nameController.text = data['name'];
+      _selectedSpecies = data['species_en'];
       _statusController.text = data['status'];
       _priceController.text = data['price'].toString();
       _notesController.text = data['notes'];
@@ -100,9 +101,17 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
         _isLoading = true;
       });
 
+      final Map<String, Map<String, String>> speciesMap = {
+        'italian': {'en': 'Italian Honeybees', 'sci': 'Apis mellifera'},
+        'stingless': {'en': 'Stingless Honeybees', 'sci': 'Trigona'},
+        'sateri': {'en': 'Sateri Honeybees', 'sci': 'Apis cerana'},
+      };
+      final selectedSpecies = speciesMap[_selectedSpecies ?? 'italian']!;
       final newBeeBox = {
         'id': _boxIdController.text,
-        'name': _nameController.text,
+        'species_en': selectedSpecies['en'],
+        'species_sci': selectedSpecies['sci'],
+        'species_key': _selectedSpecies ?? 'italian',
         'status': _statusController.text,
         'price': double.parse(_priceController.text),
         'notes': _notesController.text,
@@ -170,6 +179,107 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
     );
   }
 
+  void _openFormModal({DocumentSnapshot? beeBox}) {
+    if (beeBox != null) {
+      _editBeeBox(beeBox);
+    } else {
+      _resetForm();
+    }
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_isEditing ? 'Edit Bee Box' : 'Add Bee Box'),
+        content: SizedBox(
+          width: 400,
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: _boxIdController,
+                  decoration: InputDecoration(labelText: l10n('Box ID')),
+                  enabled: !_isEditing,
+                  validator: (v) => v == null || v.trim().isEmpty ? l10n('Required') : null,
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: _selectedSpecies,
+                  decoration: InputDecoration(labelText: l10n('Bee Species')),
+                  items: [
+                    DropdownMenuItem(value: 'italian', child: Text('Italian Honeybees (Apis mellifera)')),
+                    DropdownMenuItem(value: 'stingless', child: Text('Stingless Honeybees (Trigona)')),
+                    DropdownMenuItem(value: 'sateri', child: Text('Sateri Honeybees (Apis cerana)')),
+                  ],
+                  onChanged: (value) {
+                    setState(() { _selectedSpecies = value; });
+                  },
+                  validator: (v) => v == null || v.isEmpty ? l10n('Required') : null,
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: _statusController.text.isEmpty ? null : _statusController.text,
+                  decoration: InputDecoration(labelText: l10n('Status')),
+                  items: [
+                    DropdownMenuItem(value: 'Available', child: Text(l10n('Available'))),
+                    DropdownMenuItem(value: 'Booked', child: Text(l10n('Booked'))),
+                    DropdownMenuItem(value: 'Maintenance', child: Text(l10n('Maintenance'))),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) _statusController.text = value;
+                  },
+                  validator: (v) => v == null || v.isEmpty ? l10n('Required') : null,
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _priceController,
+                  decoration: InputDecoration(labelText: l10n('Price (per day)')),
+                  keyboardType: TextInputType.number,
+                  validator: (v) => v == null || v.trim().isEmpty ? l10n('Required') : null,
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _countController,
+                  decoration: InputDecoration(labelText: l10n('Count')),
+                  keyboardType: TextInputType.number,
+                  validator: (v) => v == null || v.trim().isEmpty ? l10n('Required') : null,
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _notesController,
+                  decoration: InputDecoration(labelText: l10n('Notes')),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n('Cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _saveForm();
+              Navigator.pop(context);
+              setState(() {});
+            },
+            child: Text(_isEditing ? l10n('Save Changes') : l10n('Add Bee Box')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteSelectedRows() async {
+    for (final id in _selectedRows) {
+      await FirebaseFirestore.instance.collection('bee_boxes').doc(id).delete();
+    }
+    setState(() {
+      _selectedRows.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -196,112 +306,30 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Add / Edit Bee Box',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: 16),
-            Form(
-              key: _formKey,
-              child: Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
                     children: [
                       Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _boxIdController,
-                              decoration: InputDecoration(labelText: l10n('Box ID')),
-                              readOnly: true,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _nameController,
-                              decoration: InputDecoration(labelText: l10n('Name')),
-                              validator: (v) => v == null || v.trim().isEmpty ? l10n('Please enter name') : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
+                Text(l10n('Bee Boxes'), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
                       Row(
                         children: [
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              value: _statusController.text.isEmpty ? null : _statusController.text,
-                              decoration: InputDecoration(labelText: l10n('Status')),
-                              items: [
-                                DropdownMenuItem(value: 'Available', child: Text(l10n('Available'))),
-                                DropdownMenuItem(value: 'Booked', child: Text(l10n('Booked'))),
-                                DropdownMenuItem(value: 'Maintenance', child: Text(l10n('Maintenance'))),
-                              ],
-                              onChanged: (value) {
-                                if (value != null) _statusController.text = value;
-                              },
-                              validator: (v) => v == null || v.isEmpty ? l10n('Please select status') : null,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _priceController,
-                              decoration: InputDecoration(labelText: l10n('Price (per day)')),
-                              keyboardType: TextInputType.number,
-                              validator: (v) => v == null || v.trim().isEmpty ? l10n('Please enter price') : null,
-                            ),
-                          ),
-                        ],
+                    if (_selectedRows.isNotEmpty)
+                      ElevatedButton.icon(
+                        onPressed: _deleteSelectedRows,
+                        icon: Icon(Icons.delete),
+                        label: Text(l10n('Delete')),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                       ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _countController,
-                              decoration: InputDecoration(labelText: l10n('Count')),
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _notesController,
-                              decoration: InputDecoration(labelText: l10n('Notes')),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          ElevatedButton(
-                            onPressed: _saveForm,
-                            child: Text(_isEditing ? l10n('Save Changes') : l10n('Add Bee Box')),
-                          ),
-                          const SizedBox(width: 12),
-                          if (_isEditing)
-                            TextButton(
-                              onPressed: _resetForm,
-                              child: Text(l10n('Cancel')),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () => _openFormModal(),
+                      icon: Icon(Icons.add),
+                      label: Text(l10n('Add Bee Box')),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
                             ),
                         ],
                       ),
                     ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              l10n('Bee Boxes List'),
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -315,64 +343,100 @@ class _BeeBoxManagementScreenState extends State<BeeBoxManagementScreen> {
                     return Center(child: Text(l10n('No bee boxes found.')));
                   }
                   final beeBoxes = snapshot.data!.docs;
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: beeBoxes.length,
-                    itemBuilder: (context, index) {
-                      final data = beeBoxes[index].data() as Map<String, dynamic>;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        child: Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          child: ListTile(
-                            leading: Icon(Icons.hive, color: AppTheme.primaryColor),
-                            title: Text('${data['id']} - ${data['name']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                  final totalPages = (beeBoxes.length / _rowsPerPage).ceil();
+                  final start = (_currentPage - 1) * _rowsPerPage;
+                  final end = (_currentPage * _rowsPerPage).clamp(0, beeBoxes.length);
+                  final pageBoxes = beeBoxes.sublist(start, end);
+                  return Column(
                               children: [
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    _buildStatusChip(data['status'] ?? ''),
-                                    const SizedBox(width: 8),
-                                    Text('₹${data['price']}/day'),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                Text(l10n('Last Maintenance: ${data['lastMaintenance'] ?? ''}')),
-                                if (data['notes'] != null && data['notes'].isNotEmpty) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    data['notes'],
-                                    style: TextStyle(color: Colors.grey[600]),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit, color: AppTheme.primaryColor),
-                                  onPressed: () => _editBeeBox(beeBoxes[index]),
-                                  tooltip: l10n('Edit'),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () => _deleteBeeBox(beeBoxes[index].id),
-                                  tooltip: l10n('Delete'),
-                                ),
-                              ],
+                      DataTable(
+                        columns: [
+                          DataColumn(
+                            label: Checkbox(
+                              value: _selectedRows.length == pageBoxes.length && pageBoxes.isNotEmpty,
+                              onChanged: (checked) {
+                                setState(() {
+                                  if (checked == true) {
+                                    _selectedRows = pageBoxes.map((b) => b.id).toList();
+                                  } else {
+                                    _selectedRows.clear();
+                                  }
+                                });
+                              },
                             ),
                           ),
+                          DataColumn(label: Text(l10n('Box ID'))),
+                          DataColumn(label: Text(l10n('Species'))),
+                          DataColumn(label: Text(l10n('Status'))),
+                          DataColumn(label: Text(l10n('Price'))),
+                          DataColumn(label: Text(l10n('Count'))),
+                          DataColumn(label: Text(l10n('Notes'))),
+                          DataColumn(label: Text(l10n('Actions'))),
+                        ],
+                        rows: pageBoxes.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return DataRow(
+                            selected: _selectedRows.contains(doc.id),
+                            onSelectChanged: (selected) {
+                              setState(() {
+                                if (selected == true) {
+                                  _selectedRows.add(doc.id);
+                                } else {
+                                  _selectedRows.remove(doc.id);
+                                }
+                              });
+                            },
+                            cells: [
+                              DataCell(Checkbox(
+                                value: _selectedRows.contains(doc.id),
+                                onChanged: (checked) {
+                                  setState(() {
+                                    if (checked == true) {
+                                      _selectedRows.add(doc.id);
+                                    } else {
+                                      _selectedRows.remove(doc.id);
+                                    }
+                                  });
+                                },
+                              )),
+                              DataCell(Text(data['id'].toString())),
+                              DataCell(Text('${data['species_en']} (${data['species_sci']})')),
+                              DataCell(Text(data['status'] ?? '')),
+                              DataCell(Text('₹${data['price']}')),
+                              DataCell(Text(data['count']?.toString() ?? '')),
+                              DataCell(Text(data['notes'] ?? '')),
+                              DataCell(Row(
+                                  children: [
+                                  IconButton(
+                                    icon: Icon(Icons.edit, color: AppTheme.primaryColor),
+                                    onPressed: () => _openFormModal(beeBox: doc),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () => _deleteBeeBox(doc.id),
+                                  ),
+                                ],
+                              )),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                      if (totalPages > 1)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                              icon: Icon(Icons.chevron_left),
+                              onPressed: _currentPage > 1 ? () => setState(() => _currentPage--) : null,
+                                ),
+                            Text('${l10n('Page')} $_currentPage ${l10n('of')} $totalPages'),
+                                IconButton(
+                              icon: Icon(Icons.chevron_right),
+                              onPressed: _currentPage < totalPages ? () => setState(() => _currentPage++) : null,
+                            ),
+                          ],
                         ),
-                      );
-                    },
+                    ],
                   );
                 },
               ),

@@ -14,6 +14,34 @@ class BeeBoxSelectionScreen extends StatefulWidget {
 
 class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
   final Set<String> selectedBoxes = {};
+  String? _selectedBoxTypeId;
+  String? _selectedBeeSpecies;
+  List<Map<String, dynamic>> _beeBoxTypes = [];
+  bool _loadingTypes = true;
+
+  static const int _gridColumns = 15;
+  static const int _gridRows = 10;
+
+  String _getSpeciesLabel(Map<String, dynamic> type) {
+    return '${type['species_en'] ?? ''} (${type['species_sci'] ?? ''})';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBeeBoxTypes();
+  }
+
+  Future<void> _fetchBeeBoxTypes() async {
+    setState(() { _loadingTypes = true; });
+    final snapshot = await FirebaseFirestore.instance.collection('bee_boxes').get();
+    _beeBoxTypes = snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      data['id'] = data['id'] ?? doc.id;
+      return data;
+    }).toList();
+    setState(() { _loadingTypes = false; });
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -23,22 +51,35 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('bee_boxes').snapshots(),
-        builder: (context, beeBoxSnapshot) {
-          if (beeBoxSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (beeBoxSnapshot.hasError) {
-            return Center(child: Text('Error loading bee boxes'));
-          }
-          final beeBoxes = beeBoxSnapshot.data!.docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            data['id'] = data['id'] ?? doc.id;
-            return data;
-          }).toList();
-
-          return StreamBuilder<QuerySnapshot>(
+      body: _loadingTypes
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Bee box type dropdown
+                  DropdownButtonFormField<String>(
+                    value: _selectedBoxTypeId,
+                    decoration: const InputDecoration(
+                      labelText: 'Select Bee Box Species',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _beeBoxTypes.map((type) => DropdownMenuItem<String>(
+                      value: type['id'].toString(),
+                      child: Text(_getSpeciesLabel(type)),
+                    )).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedBoxTypeId = value;
+                        selectedBoxes.clear();
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  if (_selectedBoxTypeId != null)
+                    Expanded(
+                      child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('bookings')
                 .where('status', whereIn: ['active', 'pending'])
@@ -50,89 +91,114 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
               if (bookingSnapshot.hasError) {
                 return Center(child: Text('Error loading bookings'));
               }
-              // 1. Build a map of boxTypeId -> total booked from bookings
-              final Map<String, int> bookedCountByType = {};
-              for (var booking in bookingSnapshot.data!.docs) {
-                final data = booking.data() as Map<String, dynamic>;
-                final boxTypeId = (data['boxTypeId'] ?? data['id'] ?? '').toString();
-                // Ensure quantity is int
-                final quantityRaw = data['quantity'] ?? (data['boxNumbers']?.length ?? 0);
-                final quantity = (quantityRaw is int) ? quantityRaw : int.tryParse(quantityRaw.toString()) ?? 0;
-                if (boxTypeId.isNotEmpty) {
-                  bookedCountByType[boxTypeId] = (bookedCountByType[boxTypeId] ?? 0) + quantity;
-                }
-              }
-
-              return ListView.builder(
-                itemCount: beeBoxes.length,
-                itemBuilder: (context, boxTypeIndex) {
-                  final boxType = beeBoxes[boxTypeIndex];
+                          // Find the selected box type
+                          final boxType = _beeBoxTypes.firstWhere((t) => t['id'].toString() == _selectedBoxTypeId);
                   final boxTypeId = boxType['id'].toString();
-                  final boxTypeName = boxType['name'] ?? 'Box';
                   final totalCount = boxType['count'] ?? 0;
-                  final bookedCount = bookedCountByType[boxTypeId] ?? 0;
-                  final availableCount = totalCount - bookedCount;
-
-                  // Show as many boxes as 'count' for this type
+                  // Get bookedIndexes from bee_boxes document
+                  final List<int> adminBookedIndexes = (boxType['bookedIndexes'] as List?)?.map((e) => int.tryParse(e.toString()) ?? -1).where((e) => e >= 0).toList() ?? [];
+                  // Find booked boxes for this type from bookings
+                  final Set<int> bookedIndexes = {};
+                  for (var booking in bookingSnapshot.data!.docs) {
+                    final data = booking.data() as Map<String, dynamic>;
+                    if ((data['boxTypeId']?.toString() ?? data['id']?.toString() ?? '') == boxTypeId) {
+                      final boxNumbers = (data['boxNumbers'] as List?)?.map((e) => int.tryParse(e.toString()) ?? -1).where((e) => e >= 0).toList() ?? [];
+                      bookedIndexes.addAll(boxNumbers);
+                    }
+                  }
+                  // Merge admin and real-time booked indexes
+                  final Set<int> allBookedIndexes = {...bookedIndexes, ...adminBookedIndexes};
                   return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                        child: Text('$boxTypeId - $boxTypeName', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      ),
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 8,
-                          childAspectRatio: 1,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                        ),
-                        itemCount: totalCount,
-                        itemBuilder: (context, index) {
-                          final isBooked = index < bookedCount;
-                          final isSelected = selectedBoxes.contains('${boxTypeId}_$index');
-                          Color color;
-                          if (isBooked) {
-                            color = Colors.red;
-                          } else if (isSelected) {
-                            color = Colors.orange;
-                          } else {
-                            color = Colors.green;
-                          }
-                          return GestureDetector(
-                            onTap: isBooked
-                                ? null
-                                : () {
-                                    setState(() {
-                                      if (isSelected) {
-                                        selectedBoxes.remove('${boxTypeId}_$index');
-                                      } else if (selectedBoxes.where((s) => s.startsWith('${boxTypeId}_')).length < availableCount) {
-                                        selectedBoxes.add('${boxTypeId}_$index');
-                                      }
-                                    });
-                                  },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: color,
-                                borderRadius: BorderRadius.circular(8),
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 16.0, top: 8.0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    _buildLegendItem(Colors.red, 'Booked'),
+                                    _buildLegendItem(Colors.yellow[700]!, 'Selected'),
+                                    _buildLegendItem(Colors.green, 'Available'),
+                                  ],
+                                ),
                               ),
-                              child: Center(
-                                child: Text('${index + 1}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                               Expanded(
+                                child: Container(
+                                  color: Colors.white,
+                                  child: SingleChildScrollView(
+                                    scrollDirection: Axis.vertical,
+                                    child: Center(
+                                      child: GridView.builder(
+                                        shrinkWrap: true,
+                                        physics: const NeverScrollableScrollPhysics(),
+                                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: _gridColumns,
+                                          childAspectRatio: 0.8,
+                                          crossAxisSpacing: 8,
+                                          mainAxisSpacing: 8,
+                                        ),
+                                        itemCount: totalCount,
+                                        itemBuilder: (context, index) {
+                                          final isBooked = allBookedIndexes.contains(index);
+                                          final isSelected = selectedBoxes.contains('${boxTypeId}_$index');
+                                          Color fillColor = Colors.transparent;
+                                          Color borderColor = Colors.grey[400]!;
+                                          if (isBooked) {
+                                            fillColor = Colors.red;
+                                            borderColor = Colors.red;
+                                          } else if (isSelected) {
+                                            fillColor = Colors.yellow[700]!;
+                                            borderColor = Colors.yellow[700]!;
+                                          } else {
+                                            fillColor = Colors.green;
+                                            borderColor = Colors.green;
+                                          }
+                                          return GestureDetector(
+                                            onTap: isBooked
+                                                ? null
+                                                : () {
+                                                    setState(() {
+                                                      if (isSelected) {
+                                                        selectedBoxes.remove('${boxTypeId}_$index');
+                                                      } else {
+                                                        selectedBoxes.add('${boxTypeId}_$index');
+                                                      }
+                                                    });
+                                                  },
+                                            child: Container(
+                                              margin: const EdgeInsets.all(2),
+                                              width: 28,
+                                              height: 28,
+                                              decoration: BoxDecoration(
+                                                color: fillColor,
+                                                border: Border.all(color: borderColor, width: 2),
+                                                borderRadius: BorderRadius.circular(4),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  '${index + 1}',
+                                                  style: TextStyle(
+                                                    color: isBooked || isSelected || fillColor != Colors.transparent ? Colors.white : Colors.black,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 11,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           );
-                        },
-                      ),
-                    ],
-                  );
                 },
-              );
-            },
-          );
-        },
+                      ),
+                    ),
+                ],
+              ),
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -209,15 +275,17 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
     return Row(
       children: [
         Container(
-          width: 20,
-          height: 20,
+          width: 18,
+          height: 18,
           decoration: BoxDecoration(
             color: color,
+            border: Border.all(color: color, width: 2),
             borderRadius: BorderRadius.circular(4),
           ),
         ),
-        const SizedBox(width: 8),
-        Text(label),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontSize: 13)),
+        const SizedBox(width: 16),
       ],
     );
   }
