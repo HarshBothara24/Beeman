@@ -28,6 +28,7 @@ class BookingService {
           .collection('bookings')
           .where('userId', isEqualTo: userId)
           .orderBy('createdAt', descending: true)
+          .limit(20)
           .snapshots()
           .map((snapshot) {
             print('BookingService: Received ${snapshot.docs.length} bookings from Firestore');

@@ -83,6 +83,8 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
             stream: FirebaseFirestore.instance
                 .collection('bookings')
                 .where('status', whereIn: ['active', 'pending'])
+                .orderBy('createdAt', descending: true)
+                .limit(100)
                 .snapshots(),
             builder: (context, bookingSnapshot) {
               if (bookingSnapshot.connectionState == ConnectionState.waiting) {

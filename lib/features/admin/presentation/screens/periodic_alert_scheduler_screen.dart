@@ -140,7 +140,7 @@ class _PeriodicAlertSchedulerScreenState extends State<PeriodicAlertSchedulerScr
             const Divider(height: 32),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance.collection('alert_schedules').orderBy('updatedAt', descending: true).snapshots(),
+                stream: FirebaseFirestore.instance.collection('alert_schedules').orderBy('updatedAt', descending: true).limit(50).snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());

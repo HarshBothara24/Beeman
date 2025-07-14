@@ -37,14 +37,10 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
   ];
   String? _selectedCropKey;
 
-  // Add a Future to hold the bookings fetch
-  late Future<QuerySnapshot> _bookingsFuture;
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _bookingsFuture = _getBookingsFuture();
   }
 
   @override
@@ -54,9 +50,12 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
     super.dispose();
   }
 
-  // Replace Stream with Future for one-time fetch
-  Future<QuerySnapshot> _getBookingsFuture() {
-    return FirebaseFirestore.instance.collection('bookings').get();
+  Stream<QuerySnapshot> _getBookingsStream() {
+    return FirebaseFirestore.instance
+        .collection('bookings')
+        .orderBy('createdAt', descending: true)
+        .limit(100)
+        .snapshots();
   }
 
   List<DocumentSnapshot> _getFilteredBookings(List<DocumentSnapshot> bookings, String status) {
@@ -377,11 +376,6 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: _refreshBookings,
-          ),
-          IconButton(
             icon: const Icon(Icons.download),
             tooltip: 'Export to Excel',
             onPressed: () async {
@@ -493,7 +487,7 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
   }
 
   Future<void> _exportBookingsToExcel() async {
-    final snapshot = await _getBookingsFuture();
+    final snapshot = await _getBookingsStream().first;
     final bookings = snapshot.docs;
     if (bookings.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -542,8 +536,8 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
   }
 
   Widget _buildBookingList(String status) {
-    return FutureBuilder<QuerySnapshot>(
-      future: _bookingsFuture,
+    return StreamBuilder<QuerySnapshot>(
+      stream: _getBookingsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -783,13 +777,6 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
         ],
       ),
     );
-  }
-
-  // Add a method to refresh bookings
-  void _refreshBookings() {
-    setState(() {
-      _bookingsFuture = _getBookingsFuture();
-    });
   }
 }
 

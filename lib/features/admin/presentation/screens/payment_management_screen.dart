@@ -30,7 +30,7 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> with 
   }
 
   void _listenToPayments() {
-    FirebaseFirestore.instance.collection('payments').snapshots().listen((snapshot) {
+    FirebaseFirestore.instance.collection('payments').limit(100).snapshots().listen((snapshot) {
       setState(() {
         _payments = snapshot.docs.map((doc) {
           final data = doc.data();

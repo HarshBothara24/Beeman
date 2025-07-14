@@ -24,7 +24,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   String _selectedFilter = 'All';
 
   Stream<QuerySnapshot> _getUsersStream() {
-    return FirebaseFirestore.instance.collection('users').snapshots();
+    return FirebaseFirestore.instance.collection('users').limit(100).snapshots();
   }
 
   List<DocumentSnapshot> _getFilteredUsers(List<DocumentSnapshot> users) {
