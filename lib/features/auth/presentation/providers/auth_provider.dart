@@ -37,6 +37,7 @@ class AuthProvider extends ChangeNotifier {
   }
   
   Future<void> _onAuthStateChanged(fb_auth.User? user) async {
+    print('onAuthStateChanged called. User: ' + (user?.uid ?? 'null')); // DEBUG
     if (user == null) {
       _user = null;
       _isAdmin = false;
@@ -46,6 +47,7 @@ class AuthProvider extends ChangeNotifier {
       await _checkIfAdmin();
       _status = AuthStatus.authenticated;
     }
+    print('Auth status in _onAuthStateChanged: $_status'); // DEBUG
     notifyListeners();
   }
   
@@ -111,7 +113,6 @@ class AuthProvider extends ChangeNotifier {
     try {
       if (kIsWeb) {
         print('Running on web'); // Debug print
-        // Use interactive sign-in for web (FedCM compatible)
         final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
         print('googleUser (web): $googleUser'); // Debug print
         if (googleUser != null) {
@@ -124,10 +125,12 @@ class AuthProvider extends ChangeNotifier {
               await _firebaseAuth.signInWithCredential(credential);
           _user = userCredential.user;
           print('Firebase user (web): $_user'); // Debug print
+          print('User UID after signInWithCredential: ${_user?.uid}'); // DEBUG
           if (_user != null) {
             await _checkIfAdmin();
             await _createUserInFirestore(_user!);
             _status = AuthStatus.authenticated;
+            print('Status set to authenticated in signInWithGoogle'); // DEBUG
             notifyListeners();
             return true;
           }

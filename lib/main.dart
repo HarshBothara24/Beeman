@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:easy_localization/easy_localization.dart';
 
-import 'core/config/firebase_options.dart';
+ import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/booking/presentation/providers/booking_provider.dart';
@@ -16,6 +16,7 @@ import 'features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'widgets/adaptive_layout.dart';
 import 'constants/breakpoints.dart';
 import 'utils/responsive_utils.dart';
+import 'features/auth/presentation/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,7 +65,7 @@ class MyApp extends StatelessWidget {
             locale: context.locale,
             supportedLocales: context.supportedLocales,
             localizationsDelegates: context.localizationDelegates,
-            home: const LoginScreen(),
+            home: const SplashScreen(),
             routes: {
               '/login': (context) => const LoginScreen(),
               '/register': (context) => const RegistrationScreen(),

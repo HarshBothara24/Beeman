@@ -1,63 +1,41 @@
 {
   "project_info": {
-    "project_number": "143517254254",
-    "project_id": "beeman-771bb",
-    "storage_bucket": "beeman-771bb.firebasestorage.app"
+    "project_number": "235985971391",
+    "project_id": "fir-beeman",
+    "storage_bucket": "fir-beeman.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:143517254254:android:995705ea72e6e16e37dc7f",
-        "android_client_info": {
-          "package_name": "com.beeman"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "143517254254-33j4d1p4504q28oh0dast17aqjdcpd7o.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDgcjX2XuwIzkeQguZBefksFLvLobtdWn4"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "143517254254-33j4d1p4504q28oh0dast17aqjdcpd7o.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:143517254254:android:00d8abbe0abe23f937dc7f",
+        "mobilesdk_app_id": "1:235985971391:android:f0e56b062ac77561943e0a",
         "android_client_info": {
           "package_name": "com.beeman.beeman"
         }
       },
       "oauth_client": [
         {
-          "client_id": "143517254254-33j4d1p4504q28oh0dast17aqjdcpd7o.apps.googleusercontent.com",
+          "client_id": "235985971391-sh8ssh2tq9kd336n69nflepk29dv3tel.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDgcjX2XuwIzkeQguZBefksFLvLobtdWn4"
+          "current_key": "AIzaSyBTchFlspHy7SVQOGPCJdFtSU2c0GX40lg"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "143517254254-33j4d1p4504q28oh0dast17aqjdcpd7o.apps.googleusercontent.com",
+              "client_id": "235985971391-j0q30p1vlgp9t1u13ihulj3fccrvnhev.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "235985971391-pdju8vkl1271tt0khr30dlg1str1nbqa.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.beeman.beeman"
+              }
             }
           ]
         }

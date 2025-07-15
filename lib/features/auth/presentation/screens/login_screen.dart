@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:google_sign_in/google_sign_in.dart';
+// Import web-only Google sign-in button and config
+import 'package:google_sign_in_web/web_only.dart' as web_only;
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -33,7 +37,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final selectedLanguage = authProvider.selectedLanguage;
     
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      print('Auth status in LoginScreen: ${authProvider.status}'); // DEBUG
       if (authProvider.status == AuthStatus.authenticated && mounted) {
+        print('Navigating to dashboard or admin...'); // DEBUG
         if (authProvider.isAdmin) {
           Navigator.of(context).pushReplacementNamed('/admin');
         } else {
@@ -196,19 +202,20 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                      CustomButton(
-                        text: _getGoogleSignInText(selectedLanguage),
-                        icon: Image.asset(
-                          'assets/icons/google_icon.png',
-                          width: 24,
-                          height: 24,
+                      // Use the official Google button for web, no config needed
+                        CustomButton(
+                          text: _getGoogleSignInText(selectedLanguage),
+                          icon: Image.asset(
+                            'assets/icons/google_icon.png',
+                            width: 24,
+                            height: 24,
+                          ),
+                          onPressed: _isLoading ? null : () => _signInWithGoogle(context),
+                          isLoading: _isLoading,
+                          backgroundColor: Colors.white,
+                          textColor: AppTheme.textPrimary,
+                          borderColor: AppTheme.border,
                         ),
-                        onPressed: _isLoading ? null : () => _signInWithGoogle(context),
-                        isLoading: _isLoading,
-                        backgroundColor: Colors.white,
-                        textColor: AppTheme.textPrimary,
-                        borderColor: AppTheme.border,
-                      ),
                       const SizedBox(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -282,6 +289,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     try {
       final success = await authProvider.signInWithGoogle();
+      print('signInWithGoogle returned: ${success}'); // DEBUG
+      print('AuthProvider status after sign-in: ${authProvider.status}'); // DEBUG
       if (success && context.mounted) {
         // Check if profile is complete
         final user = authProvider.user;
@@ -293,6 +302,7 @@ class _LoginScreenState extends State<LoginScreen> {
           final hasEmail = (data['email'] ?? '').toString().trim().isNotEmpty;
           final hasAddress = (data['address'] ?? '').toString().trim().isNotEmpty;
           if (!hasName || !hasPhone || !hasEmail || !hasAddress) {
+            print('Profile incomplete, redirecting to ProfileScreen'); // DEBUG
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (_) => const ProfileScreen()),
             );
@@ -301,11 +311,13 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
         // Navigate to dashboard if profile is complete
+        print('Profile complete, navigating to DashboardScreen'); // DEBUG
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const DashboardScreen()),
         );
       } else if (context.mounted) {
         // Show error message
+        print('Google sign-in failed: ${authProvider.errorMessage}'); // DEBUG
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(authProvider.errorMessage),
