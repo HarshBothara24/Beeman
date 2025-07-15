@@ -49,7 +49,7 @@ class SupportCard extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimaryColor,
+                  color: AppTheme.textPrimary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -58,7 +58,7 @@ class SupportCard extends StatelessWidget {
                 subtitle,
                 style: const TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textSecondaryColor,
+                  color: AppTheme.textSecondary,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,

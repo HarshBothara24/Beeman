@@ -46,7 +46,7 @@ class _FaqItemState extends State<FaqItem> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimaryColor,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
                   ),
@@ -64,7 +64,7 @@ class _FaqItemState extends State<FaqItem> {
                   widget.answer,
                   style: const TextStyle(
                     fontSize: 14,
-                    color: AppTheme.textSecondaryColor,
+                    color: AppTheme.textSecondary,
                   ),
                 ),
               ],

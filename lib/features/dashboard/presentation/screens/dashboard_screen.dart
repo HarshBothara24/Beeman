@@ -11,6 +11,7 @@ import '../../../booking/presentation/screens/my_bookings_screen.dart';
 import '../../../payment/presentation/screens/payment_history_screen.dart';
 import '../widgets/dashboard_drawer.dart';
 import '../widgets/feature_card.dart';
+import '../../../support/presentation/screens/support_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -157,7 +158,13 @@ class DashboardScreen extends StatelessWidget {
                           icon: Icons.support_agent,
                           color: Colors.blue,
                           onTap: () {
-                            // Navigate to support screen
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const SupportScreen(),
+                                settings: RouteSettings(arguments: selectedLanguage),
+                              ),
+                            );
                           },
                         ),
                       ],
