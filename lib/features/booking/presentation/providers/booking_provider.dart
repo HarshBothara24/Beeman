@@ -67,6 +67,7 @@ class BookingProvider with ChangeNotifier {
     required DateTime endDate,
     String? notes,
     String? userName,
+    List<Map<String, dynamic>>? beeBoxDetails,
   }) async {
     final booking = BookingModel(
       id: '', // Firestore will generate this
@@ -87,6 +88,7 @@ class BookingProvider with ChangeNotifier {
       userPhone: phone,
       boxCount: _selectedBoxes.length,
       paymentStatus: 'pending',
+      beeBoxDetails: beeBoxDetails,
     );
 
     await _bookingService.createBooking(booking);

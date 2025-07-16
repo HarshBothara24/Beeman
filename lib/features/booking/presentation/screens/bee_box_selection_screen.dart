@@ -103,7 +103,14 @@ class _BeeBoxSelectionScreenState extends State<BeeBoxSelectionScreen> {
                   final Set<int> bookedIndexes = {};
                   for (var booking in bookingSnapshot.data!.docs) {
                     final data = booking.data() as Map<String, dynamic>;
-                    if ((data['boxTypeId']?.toString() ?? data['id']?.toString() ?? '') == boxTypeId) {
+                    if (data['beeBoxDetails'] != null) {
+                      for (final detail in List.from(data['beeBoxDetails'])) {
+                        if (detail is Map && (detail['boxTypeId']?.toString() ?? detail['type']?.toString() ?? '') == boxTypeId) {
+                          final boxNumbers = (detail['boxNumbers'] as List?)?.map((e) => int.tryParse(e.toString()) ?? -1).where((e) => e >= 0).toList() ?? [];
+                          bookedIndexes.addAll(boxNumbers);
+                        }
+                      }
+                    } else if ((data['boxTypeId']?.toString() ?? data['id']?.toString() ?? '') == boxTypeId) {
                       final boxNumbers = (data['boxNumbers'] as List?)?.map((e) => int.tryParse(e.toString()) ?? -1).where((e) => e >= 0).toList() ?? [];
                       bookedIndexes.addAll(boxNumbers);
                     }

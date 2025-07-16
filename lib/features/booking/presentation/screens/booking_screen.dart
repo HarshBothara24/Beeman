@@ -367,7 +367,7 @@ class _BookingScreenState extends State<BookingScreen> {
     );
   }
 
-  void _validateAndProceed(String languageCode) {
+  Future<void> _validateAndProceed(String languageCode) async {
     if (_formKey.currentState!.validate()) {
       if (_startDate == null || _endDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -390,6 +390,37 @@ class _BookingScreenState extends State<BookingScreen> {
       // Calculate deposit amount (60% of total rent)
       final depositAmount = (totalRent * AppConstants.depositPercentage) ~/ 100;
 
+      // Fetch bee box types from Firestore to map boxTypeId to species
+      
+      final beeBoxTypeDocs = await FirebaseFirestore.instance.collection('bee_boxes').get();
+      final Map<String, String> beeBoxTypeNameMap = {};
+      for (var doc in beeBoxTypeDocs.docs) {
+        final data = doc.data();
+        beeBoxTypeNameMap[doc['id'].toString()] = '${data['species_en'] ?? ''} (${data['species_sci'] ?? ''})';
+      }
+      // Construct beeBoxDetails from selectedBoxes
+      List<Map<String, dynamic>> beeBoxDetails = [];
+      if (widget.selectedBoxes != null && widget.selectedBoxes!.isNotEmpty) {
+        widget.selectedBoxes!.forEach((typeOrId, boxList) {
+          beeBoxDetails.add({
+            'type': typeOrId,
+            'id': typeOrId,
+            'boxTypeId': typeOrId,
+            'quantity': boxList.length,
+            'boxNumbers': boxList,
+            'beeboxType': beeBoxTypeNameMap[typeOrId] ?? 'Unknown',
+          });
+        });
+      } else {
+        beeBoxDetails.add({
+          'type': 'unknown',
+          'id': 'unknown',
+          'boxTypeId': 'unknown',
+          'quantity': bookingProvider.selectedBoxes.length,
+          'boxNumbers': bookingProvider.selectedBoxes.toList(),
+          'beeboxType': 'Unknown',
+        });
+      }
       // Navigate to payment screen
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -406,6 +437,7 @@ class _BookingScreenState extends State<BookingScreen> {
               'totalRent': totalRent,
               'depositAmount': depositAmount,
               'days': days,
+              'beeBoxDetails': beeBoxDetails,
             },
           ),
         ),

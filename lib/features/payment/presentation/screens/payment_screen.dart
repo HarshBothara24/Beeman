@@ -105,6 +105,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       userPhone: widget.bookingDetails['phone'],
       boxCount: widget.bookingDetails['numberOfBoxes'],
       paymentStatus: 'success',
+      beeBoxDetails: widget.bookingDetails['beeBoxDetails'],
     );
     try {
       await bookingService.createBooking(booking);
@@ -449,6 +450,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       userPhone: widget.bookingDetails['phone'],
       boxCount: widget.bookingDetails['numberOfBoxes'],
       paymentStatus: 'success',
+      beeBoxDetails: widget.bookingDetails['beeBoxDetails'],
     );
     try {
       await bookingService.createBooking(booking);

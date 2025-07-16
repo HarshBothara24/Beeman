@@ -19,6 +19,7 @@ class BookingModel {
   final String? userPhone;
   final int? boxCount;
   final String? paymentStatus;
+  final List<Map<String, dynamic>>? beeBoxDetails;
 
   BookingModel({
     required this.id,
@@ -39,6 +40,7 @@ class BookingModel {
     this.userPhone,
     this.boxCount,
     this.paymentStatus,
+    this.beeBoxDetails,
   });
 
   factory BookingModel.fromFirestore(DocumentSnapshot doc) {
@@ -62,6 +64,7 @@ class BookingModel {
       userPhone: data['userPhone'],
       boxCount: data['boxCount'],
       paymentStatus: data['paymentStatus'],
+      beeBoxDetails: (data['beeBoxDetails'] as List?)?.map((e) => Map<String, dynamic>.from(e)).toList(),
     );
   }
 
@@ -84,6 +87,7 @@ class BookingModel {
       'userPhone': userPhone,
       'boxCount': boxCount,
       'paymentStatus': paymentStatus,
+      'beeBoxDetails': beeBoxDetails,
     };
   }
 }
