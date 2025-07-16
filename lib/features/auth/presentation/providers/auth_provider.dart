@@ -33,10 +33,10 @@ class AuthProvider extends ChangeNotifier {
   AuthProvider({fb_auth.FirebaseAuth? firebaseAuth})
       : _firebaseAuth = firebaseAuth ?? fb_auth.FirebaseAuth.instance {
     _loadLanguagePreference();
-    _firebaseAuth.authStateChanges().listen(_onAuthStateChanged);
+    _firebaseAuth.authStateChanges().listen(onAuthStateChanged);
   }
   
-  Future<void> _onAuthStateChanged(fb_auth.User? user) async {
+  Future<void> onAuthStateChanged(fb_auth.User? user) async {
     print('onAuthStateChanged called. User: ' + (user?.uid ?? 'null')); // DEBUG
     if (user == null) {
       _user = null;
@@ -56,7 +56,7 @@ class AuthProvider extends ChangeNotifier {
     // This method is now largely redundant due to the authStateChanges listener,
     // but can be kept for initial sync if needed.
     final currentUser = _firebaseAuth.currentUser;
-    await _onAuthStateChanged(currentUser);
+    await onAuthStateChanged(currentUser);
   }
   
   // Sign in with email and password

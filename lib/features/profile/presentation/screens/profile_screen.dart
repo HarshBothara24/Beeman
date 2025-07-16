@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../auth/presentation/providers/auth_provider.dart' as my_auth;
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/widgets/custom_button.dart';
+import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -106,14 +107,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'landSize': _landSizeController.text,
       });
 
-      // After saving, if profile is now complete, navigate to dashboard
-      if (_nameController.text.trim().isNotEmpty &&
-          _phoneController.text.trim().isNotEmpty &&
-          _emailController.text.trim().isNotEmpty &&
-          _addressController.text.trim().isNotEmpty) {
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/dashboard');
-        }
+      // After saving, always navigate to dashboard
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
       }
     }
   }

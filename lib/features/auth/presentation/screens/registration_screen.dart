@@ -75,6 +75,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         final user = userCred.user;
 
         if (user != null) {
+          await user.updateDisplayName(_farmerNameController.text.trim());
+          await user.reload();
+          // Force AuthProvider to reload user so dashboard sees updated displayName
+          final currentUser = fb_auth.FirebaseAuth.instance.currentUser;
+          Provider.of<AuthProvider>(context, listen: false).onAuthStateChanged(currentUser);
           await FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
