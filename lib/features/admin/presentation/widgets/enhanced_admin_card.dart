@@ -1,31 +1,33 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/providers/theme_provider.dart';
+import 'package:provider/provider.dart';
 
-class FeatureCard extends StatefulWidget {
+class EnhancedAdminCard extends StatefulWidget {
   final String title;
   final String subtitle;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+  final bool isNew;
   final bool isEnabled;
-  final Widget? badge;
 
-  const FeatureCard({
+  const EnhancedAdminCard({
     super.key,
     required this.title,
     required this.subtitle,
     required this.icon,
     required this.color,
     required this.onTap,
+    this.isNew = false,
     this.isEnabled = true,
-    this.badge,
   });
 
   @override
-  State<FeatureCard> createState() => _FeatureCardState();
+  State<EnhancedAdminCard> createState() => _EnhancedAdminCardState();
 }
 
-class _FeatureCardState extends State<FeatureCard>
+class _EnhancedAdminCardState extends State<EnhancedAdminCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
@@ -105,6 +107,8 @@ class _FeatureCardState extends State<FeatureCard>
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return AnimatedBuilder(
       animation: _animationController,
       builder: (context, child) {
@@ -121,14 +125,20 @@ class _FeatureCardState extends State<FeatureCard>
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
-                  color: widget.isEnabled
-                      ? AppTheme.surfaceColor
-                      : AppTheme.surfaceColor.withOpacity(0.5),
+                  color: widget.isEnabled 
+                      ? (themeProvider.isDarkMode 
+                          ? AppTheme.darkSurfaceColor 
+                          : AppTheme.surfaceColor)
+                      : (themeProvider.isDarkMode 
+                          ? AppTheme.darkSurfaceColor.withOpacity(0.5) 
+                          : AppTheme.surfaceColor.withOpacity(0.5)),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: _isHovered && widget.isEnabled
                         ? widget.color.withOpacity(0.3)
-                        : AppTheme.dividerColor,
+                        : (themeProvider.isDarkMode 
+                            ? AppTheme.darkBorderColor 
+                            : AppTheme.dividerColor),
                     width: _isHovered && widget.isEnabled ? 1.5 : 0.5,
                   ),
                   boxShadow: [
@@ -164,7 +174,7 @@ class _FeatureCardState extends State<FeatureCard>
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           // Icon container with animation
                           AnimatedContainer(
@@ -181,29 +191,34 @@ class _FeatureCardState extends State<FeatureCard>
                               duration: const Duration(milliseconds: 200),
                               child: Icon(
                                 widget.icon,
-                                color: widget.isEnabled
-                                    ? widget.color
+                                color: widget.isEnabled 
+                                    ? widget.color 
                                     : widget.color.withOpacity(0.5),
                                 size: 32,
                               ),
                             ),
                           ),
                           
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 16),
                           
                           // Title with animation
                           AnimatedDefaultTextStyle(
                             duration: const Duration(milliseconds: 200),
                             style: TextStyle(
-                              fontSize: _isHovered && widget.isEnabled ? 17 : 16,
+                              fontSize: _isHovered && widget.isEnabled ? 19 : 18,
                               fontWeight: FontWeight.bold,
-                              color: widget.isEnabled
-                                  ? AppTheme.textPrimary
-                                  : AppTheme.textMuted,
+                              color: widget.isEnabled 
+                                  ? (themeProvider.isDarkMode 
+                                      ? AppTheme.darkTextPrimary 
+                                      : AppTheme.textPrimary)
+                                  : (themeProvider.isDarkMode 
+                                      ? AppTheme.darkTextMuted 
+                                      : AppTheme.textMuted),
                             ),
                             child: Text(
                               widget.title,
-                              maxLines: 2,
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -214,12 +229,18 @@ class _FeatureCardState extends State<FeatureCard>
                           Text(
                             widget.subtitle,
                             style: TextStyle(
-                              fontSize: 13,
-                              color: widget.isEnabled
-                                  ? AppTheme.textSecondary
-                                  : AppTheme.textMuted,
+                              fontSize: 14,
+                              color: widget.isEnabled 
+                                  ? (themeProvider.isDarkMode 
+                                      ? AppTheme.darkTextSecondary 
+                                      : AppTheme.textSecondary)
+                                  : (themeProvider.isDarkMode 
+                                      ? AppTheme.darkTextMuted 
+                                      : AppTheme.textMuted),
                               height: 1.4,
+                              fontWeight: FontWeight.w500,
                             ),
+                            textAlign: TextAlign.center,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -243,11 +264,25 @@ class _FeatureCardState extends State<FeatureCard>
                     ),
                     
                     // Badge
-                    if (widget.badge != null)
+                    if (widget.isNew)
                       Positioned(
                         top: 12,
                         right: 12,
-                        child: widget.badge!,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.warningColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'NEW',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -256,95 +291,6 @@ class _FeatureCardState extends State<FeatureCard>
           ),
         );
       },
-    );
-  }
-}
-
-// Enhanced feature card with additional features
-class EnhancedFeatureCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  final String? badgeText;
-  final bool isNew;
-  final bool isComingSoon;
-
-  const EnhancedFeatureCard({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    this.badgeText,
-    this.isNew = false,
-    this.isComingSoon = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    Widget? badge;
-    
-    if (isNew) {
-      badge = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppTheme.warningColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Text(
-          'NEW',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    } else if (isComingSoon) {
-      badge = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppTheme.infoColor,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Text(
-          'SOON',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    } else if (badgeText != null) {
-      badge = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          badgeText!,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    }
-
-    return FeatureCard(
-      title: title,
-      subtitle: subtitle,
-      icon: icon,
-      color: color,
-      onTap: onTap,
-      isEnabled: !isComingSoon,
-      badge: badge,
     );
   }
 }

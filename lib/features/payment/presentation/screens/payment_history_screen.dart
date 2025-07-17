@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
-import '../../../../core/utils/debug_utils.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 class PaymentHistoryScreen extends StatefulWidget {
@@ -94,17 +93,6 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
     }
   }
 
-  Future<void> _debugPayments() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final userId = authProvider.user?.uid;
-    if (userId != null) {
-      await DebugUtils.debugUserBookings(userId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment debug info printed to console')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -116,11 +104,6 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _fetchPaymentHistory,
-          ),
-          IconButton(
-            icon: const Icon(Icons.bug_report),
-            onPressed: _debugPayments,
-            tooltip: 'Debug Payments',
           ),
         ],
       ),
@@ -196,14 +179,6 @@ class _PaymentHistoryScreenState extends State<PaymentHistoryScreen> {
                     backgroundColor: AppTheme.primaryColor,
                   ),
                   child: const Text('Refresh'),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: _debugPayments,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                  ),
-                  child: const Text('Debug'),
                 ),
               ],
             ),

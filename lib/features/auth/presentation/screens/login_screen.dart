@@ -7,10 +7,11 @@ import 'package:google_sign_in_web/web_only.dart' as web_only;
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/animated_loading.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../admin/presentation/screens/admin_login_screen.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/custom_button.dart';
 import 'registration_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -22,13 +23,59 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
   bool _isLoading = false;
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
-    // No need to render Google Sign-In button from Dart; plugin handles it.
+    _initializeAnimations();
+  }
+
+  void _initializeAnimations() {
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeIn,
+    ));
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOut,
+    ));
+
+    // Start animations
+    _fadeController.forward();
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) _slideController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _slideController.dispose();
+    super.dispose();
   }
 
   @override
@@ -55,225 +102,343 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppTheme.backgroundGradient,
+        ),
+        child: SafeArea(
           child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 48),
-                // Logo and app name
-                Center(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: const BoxDecoration(
-                          color: AppTheme.primaryColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.emoji_nature, // Bee icon
-                          size: 80,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        AppConstants.appName,
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'BeeBox Pollination Management',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Welcome text
-                Text(
-                  _getWelcomeText(selectedLanguage),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
-                  textAlign: TextAlign.center,
-                  softWrap: true,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  _getSubtitleText(selectedLanguage),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: AppTheme.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                  softWrap: true,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 48),
-                // Sign-in form section (redesigned)
-                Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 400),
+            padding: const EdgeInsets.all(24.0),
+            child: AnimatedBuilder(
+              animation: _fadeAnimation,
+              builder: (context, child) {
+                return Opacity(
+                  opacity: _fadeAnimation.value,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                        const SizedBox(height: 16),
-                        TextField(
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          obscureText: true,
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: false,
-                              onChanged: (v) {},
-                            ),
-                            const Text('Remember me'),
-                            const Spacer(),
-                            GestureDetector(
-                              onTap: () {},
-                              child: Text(
-                                'Forgot your password?',
+                      const SizedBox(height: 32),
+                      
+                      // Animated Logo Section
+                      SlideTransition(
+                        position: _slideAnimation,
+                        child: Center(
+                          child: Column(
+                            children: [
+                              Hero(
+                                tag: 'app_logo',
+                                child: Container(
+                                  width: 120,
+                                  height: 120,
+                                  decoration: BoxDecoration(
+                                    gradient: AppTheme.primaryGradient,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: AppTheme.primaryColor.withOpacity(0.3),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.emoji_nature,
+                                    size: 80,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+                              ShaderMask(
+                                shaderCallback: (bounds) =>
+                                    AppTheme.primaryGradient.createShader(bounds),
+                                child: const Text(
+                                  AppConstants.appName,
+                                  style: TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Pollination Management System',
                                 style: TextStyle(
-                                  color: AppTheme.primaryColor,
+                                  fontSize: 16,
+                                  color: AppTheme.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 48),
+                      
+                      // Welcome Section
+                      SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.2),
+                          end: Offset.zero,
+                        ).animate(CurvedAnimation(
+                          parent: _slideController,
+                          curve: const Interval(0.3, 1.0, curve: Curves.easeOut),
+                        )),
+                        child: Column(
+                          children: [
+                            Text(
+                              _getWelcomeText(selectedLanguage),
+                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _getSubtitleText(selectedLanguage),
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 48),
+                      
+                      // Login Form Card
+                      SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.3),
+                          end: Offset.zero,
+                        ).animate(CurvedAnimation(
+                          parent: _slideController,
+                          curve: const Interval(0.5, 1.0, curve: Curves.easeOut),
+                        )),
+                        child: Center(
+                          child: Container(
+                            constraints: const BoxConstraints(maxWidth: 400),
+                            child: Card(
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: AppTheme.surfaceColor,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: AppTheme.dividerColor,
+                                    width: 0.5,
+                                  ),
+                                  boxShadow: [AppTheme.cardShadow],
+                                ),
+                                padding: const EdgeInsets.all(32),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Email Field
+                                    TextField(
+                                      decoration: InputDecoration(
+                                        labelText: 'Email',
+                                        prefixIcon: Icon(
+                                          Icons.email_outlined,
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                        filled: true,
+                                        fillColor: AppTheme.backgroundColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    
+                                    // Password Field
+                                    TextField(
+                                      obscureText: true,
+                                      decoration: InputDecoration(
+                                        labelText: 'Password',
+                                        prefixIcon: Icon(
+                                          Icons.lock_outline,
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                        suffixIcon: Icon(
+                                          Icons.visibility_off_outlined,
+                                          color: AppTheme.textSecondary,
+                                        ),
+                                        filled: true,
+                                        fillColor: AppTheme.backgroundColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    
+                                    // Remember me & Forgot password
+                                    Row(
+                                      children: [
+                                        Checkbox(
+                                          value: false,
+                                          onChanged: (v) {},
+                                          activeColor: AppTheme.primaryColor,
+                                        ),
+                                        const Text('Remember me'),
+                                        const Spacer(),
+                                        TextButton(
+                                          onPressed: () {},
+                                          child: Text(
+                                            'Forgot Password?',
+                                            style: TextStyle(
+                                              color: AppTheme.primaryColor,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 24),
+                                    
+                                    // Sign In Button
+                                    GradientButton(
+                                      text: 'Sign In',
+                                      onPressed: () {},
+                                      fullWidth: true,
+                                      icon: Icons.login,
+                                    ),
+                                    
+                                    const SizedBox(height: 24),
+                                    
+                                    // Divider
+                                    Row(
+                                      children: [
+                                        const Expanded(child: Divider()),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                                          child: Text(
+                                            'Or continue with',
+                                            style: TextStyle(
+                                              color: AppTheme.textSecondary,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                        const Expanded(child: Divider()),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 24),
+                                    
+                                    // Google Sign In Button
+                                    LoadingOverlay(
+                                      isLoading: _isLoading,
+                                      loadingText: 'Signing in...',
+                                      child: CustomButton(
+                                        text: _getGoogleSignInText(selectedLanguage),
+                                        onPressed: _isLoading ? null : () => _signInWithGoogle(context),
+                                        variant: ButtonVariant.outlined,
+                                        fullWidth: true,
+                                        iconWidget: Image.asset(
+                                          'assets/icons/google_icon.png',
+                                          width: 20,
+                                          height: 20,
+                                        ),
+                                      ),
+                                    ),
+                                    
+                                    const SizedBox(height: 24),
+                                    
+                                    // Sign Up Link
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          'Don\'t have an account? ',
+                                          style: TextStyle(color: AppTheme.textSecondary),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              PageRouteBuilder(
+                                                pageBuilder: (context, animation, secondaryAnimation) =>
+                                                    const RegistrationScreen(),
+                                                transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                                                  return SlideTransition(
+                                                    position: Tween<Offset>(
+                                                      begin: const Offset(1.0, 0.0),
+                                                      end: Offset.zero,
+                                                    ).animate(animation),
+                                                    child: child,
+                                                  );
+                                                },
+                                              ),
+                                            );
+                                          },
+                                          child: Text(
+                                            'Sign Up',
+                                            style: TextStyle(
+                                              color: AppTheme.primaryColor,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 32),
+                      
+                      // Terms and Admin Login
+                      SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.2),
+                          end: Offset.zero,
+                        ).animate(CurvedAnimation(
+                          parent: _slideController,
+                          curve: const Interval(0.7, 1.0, curve: Curves.easeOut),
+                        )),
+                        child: Column(
+                          children: [
+                            Text(
+                              _getTermsText(selectedLanguage),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: AppTheme.textMuted,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const AdminLoginScreen(),
+                                  ),
+                                );
+                              },
+                              child: Text(
+                                _getAdminLoginText(selectedLanguage),
+                                style: TextStyle(
+                                  color: AppTheme.textSecondary,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              'Sign in',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          children: const [
-                            Expanded(child: Divider()),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 8.0),
-                              child: Text('Or continue with'),
-                            ),
-                            Expanded(child: Divider()),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                      // Use the official Google button for web, no config needed
-                        CustomButton(
-                          text: _getGoogleSignInText(selectedLanguage),
-                          icon: Image.asset(
-                            'assets/icons/google_icon.png',
-                            width: 24,
-                            height: 24,
-                          ),
-                          onPressed: _isLoading ? null : () => _signInWithGoogle(context),
-                          isLoading: _isLoading,
-                          backgroundColor: Colors.white,
-                          textColor: AppTheme.textPrimary,
-                          borderColor: AppTheme.border,
-                        ),
-                      const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('Don\'t have an account? '),
-                            GestureDetector(
-                              onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const RegistrationScreen(),
-                            ),
-                          );
-                        },
-                              child: Text(
-                                'Create a new account',
-                                style: TextStyle(
-                                  color: AppTheme.primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                              ),
-                            ],
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Terms and conditions
-                Text(
-                  _getTermsText(selectedLanguage),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                // Admin login button
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AdminLoginScreen(),
                       ),
-                    );
-                  },
-                  child: Text(
-                    _getAdminLoginText(selectedLanguage),
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                    ),
+                      
+                      const SizedBox(height: 32),
+                    ],
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/animated_loading.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/screens/login_screen.dart';
 import '../../../auth/presentation/screens/language_selection_screen.dart';
@@ -11,253 +12,556 @@ import '../../../booking/presentation/screens/my_bookings_screen.dart';
 import '../../../payment/presentation/screens/payment_history_screen.dart';
 import '../widgets/dashboard_drawer.dart';
 import '../widgets/feature_card.dart';
+import '../providers/dashboard_provider.dart';
 import '../../../support/presentation/screens/support_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAnimations();
+    // Fetch dashboard stats after first build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.user;
+      if (user != null) {
+        Provider.of<DashboardProvider>(context, listen: false)
+            .fetchDashboardStats(user.uid ?? user.email ?? '');
+      }
+    });
+  }
+
+  void _initializeAnimations() {
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeIn,
+    ));
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOut,
+    ));
+
+    // Start animations
+    _fadeController.forward();
+    _slideController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _slideController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
     final selectedLanguage = authProvider.selectedLanguage;
+    final dashboardProvider = Provider.of<DashboardProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('BeeMan Dashboard'),
-        backgroundColor: AppTheme.primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      drawer: const DashboardDrawer(),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Section: Welcome
-                Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppTheme.backgroundGradient,
+        ),
+        child: CustomScrollView(
+          slivers: [
+            // Modern App Bar
+            SliverAppBar(
+              expandedHeight: 120,
+              floating: false,
+              pinned: true,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Container(
+                  decoration: const BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 32,
-                          backgroundColor: AppTheme.primaryColor,
-                          child: Text(
-                            user?.displayName?.substring(0, 1).toUpperCase() ??
-                                'U',
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            _getGreetingText(selectedLanguage),
                             style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
                               color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user?.displayName ?? 'User',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                user?.email ?? '',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: AppTheme.textSecondary,
-                                ),
-                              ),
-                            ],
+                          const SizedBox(height: 4),
+                          Text(
+                            user?.displayName ?? 'User',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
-                // Section: Quick Actions
-                const Text(
-                  'Quick Actions',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    int crossAxisCount = 2;
-                    double width = constraints.maxWidth;
-                    if (width > 900) {
-                      crossAxisCount = 4;
-                    } else if (width > 600) {
-                      crossAxisCount = 3;
-                    }
-                    return GridView.count(
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 24,
-                      mainAxisSpacing: 24,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      childAspectRatio: 1.1,
-                      children: [
-                        _animatedFeatureCard(
-                          title: _getBookingText(selectedLanguage),
-                          subtitle: _getBookingSubtitleText(selectedLanguage),
-                          icon: Icons.calendar_today,
-                          color: Colors.amber,
-                          onTap: () => _navigateToBooking(context),
-                        ),
-                        _animatedFeatureCard(
-                          title: _getMyBookingsText(selectedLanguage),
-                          subtitle: _getMyBookingsSubtitleText(
-                            selectedLanguage,
-                          ),
-                          icon: Icons.history,
-                          color: Colors.green,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const MyBookingsScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        _animatedFeatureCard(
-                          title: _getPaymentsText(selectedLanguage),
-                          subtitle: _getPaymentsSubtitleText(selectedLanguage),
-                          icon: Icons.payment,
-                          color: Colors.purple,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const PaymentHistoryScreen(),
-                              ),
-                            );
-                          },
-                        ),
-                        _animatedFeatureCard(
-                          title: _getSupportText(selectedLanguage),
-                          subtitle: _getSupportSubtitleText(selectedLanguage),
-                          icon: Icons.support_agent,
-                          color: Colors.blue,
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SupportScreen(),
-                                settings: RouteSettings(arguments: selectedLanguage),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.language, color: Colors.white),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const LanguageSelectionScreen(),
+                      ),
                     );
                   },
                 ),
-                const SizedBox(height: 32),
-                // Section: Info
-                const Text(
-                  'Your Activity',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+                  onPressed: () {
+                    // TODO: Navigate to notifications
+                  },
                 ),
-                const SizedBox(height: 16),
-                // Add more user activity widgets here as needed
               ],
             ),
-          ),
+
+            // Dashboard Content
+            SliverToBoxAdapter(
+              child: AnimatedBuilder(
+                animation: _fadeAnimation,
+                builder: (context, child) {
+                  return FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Welcome Card
+                            _buildWelcomeCard(user),
+                            const SizedBox(height: 24),
+
+                            // Quick Stats
+                            if (dashboardProvider.isLoading)
+                              const Center(child: CircularProgressIndicator()),
+                            if (dashboardProvider.error != null)
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  'Error: ${dashboardProvider.error}',
+                                  style: const TextStyle(color: Colors.red),
+                                ),
+                              ),
+                            if (!dashboardProvider.isLoading && dashboardProvider.error == null)
+                              _buildQuickStats(
+                                dashboardProvider.activeBookings,
+                                dashboardProvider.totalSpent,
+                                dashboardProvider.beeBoxes,
+                              ),
+                            const SizedBox(height: 32),
+
+                            // Quick Actions Section
+                            _buildSectionHeader('Quick Actions', selectedLanguage),
+                            const SizedBox(height: 16),
+                            _buildQuickActions(selectedLanguage),
+                            const SizedBox(height: 32),
+
+                            // Recent Activity Section
+                            _buildSectionHeader('Recent Activity', selectedLanguage),
+                            const SizedBox(height: 16),
+                            _buildRecentActivity(),
+                            const SizedBox(height: 32),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: 'language_fab',
-        backgroundColor: AppTheme.primaryColor,
-        child: const Icon(Icons.language, color: Colors.white),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const LanguageSelectionScreen()),
-          );
-        },
-        tooltip: 'Change Language',
-      ),
+      drawer: const DashboardDrawer(),
     );
   }
 
-  Widget _animatedFeatureCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOut,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildWelcomeCard(user) {
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Row(
           children: [
-            Icon(icon, color: color, size: 36),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: color,
+            Hero(
+              tag: 'user_avatar',
+              child: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    user?.displayName?.substring(0, 1).toUpperCase() ?? 'U',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: TextStyle(
-                color: color.withOpacity(0.8),
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back!',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user?.displayName ?? 'User',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user?.email ?? '',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppTheme.textMuted,
+                    ),
+                  ),
+                ],
               ),
-              textAlign: TextAlign.center,
+            ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.availableColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.verified_user,
+                color: AppTheme.availableColor,
+                size: 20,
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildQuickStats([int? activeBookings, int? totalSpent, int? beeBoxes]) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            'Active Bookings',
+            activeBookings?.toString() ?? '0',
+            Icons.calendar_today,
+            AppTheme.warningColor,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            'Total Spent',
+            totalSpent != null ? '₹${totalSpent}' : '₹0',
+            Icons.currency_rupee,
+            AppTheme.availableColor,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildStatCard(
+            'Bee Boxes',
+            beeBoxes?.toString() ?? '0',
+            Icons.inventory,
+            AppTheme.infoColor,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.dividerColor, width: 0.5),
+        boxShadow: [AppTheme.cardShadow],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, String selectedLanguage) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        TextButton(
+          onPressed: () {},
+          child: Text(
+            'View All',
+            style: TextStyle(
+              color: AppTheme.primaryColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActions(String selectedLanguage) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        int crossAxisCount = 2;
+        double width = constraints.maxWidth;
+        if (width > 900) {
+          crossAxisCount = 4;
+        } else if (width > 600) {
+          crossAxisCount = 3;
+        }
+
+        return GridView.count(
+          crossAxisCount: crossAxisCount,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: 1.1,
+          children: [
+            EnhancedFeatureCard(
+              title: _getBookingText(selectedLanguage),
+              subtitle: _getBookingSubtitleText(selectedLanguage),
+              icon: Icons.calendar_today,
+              color: AppTheme.warningColor,
+              onTap: () => _navigateToBooking(context),
+              isNew: true,
+            ),
+            EnhancedFeatureCard(
+              title: _getMyBookingsText(selectedLanguage),
+              subtitle: _getMyBookingsSubtitleText(selectedLanguage),
+              icon: Icons.history,
+              color: AppTheme.availableColor,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MyBookingsScreen(),
+                  ),
+                );
+              },
+            ),
+            EnhancedFeatureCard(
+              title: _getPaymentsText(selectedLanguage),
+              subtitle: _getPaymentsSubtitleText(selectedLanguage),
+              icon: Icons.payment,
+              color: AppTheme.infoColor,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PaymentHistoryScreen(),
+                  ),
+                );
+              },
+            ),
+            EnhancedFeatureCard(
+              title: _getSupportText(selectedLanguage),
+              subtitle: _getSupportSubtitleText(selectedLanguage),
+              icon: Icons.support_agent,
+              color: AppTheme.selectedColor,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SupportScreen(),
+                    settings: RouteSettings(arguments: selectedLanguage),
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildRecentActivity() {
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: Column(
+        children: [
+          _buildActivityItem(
+            'Booking Confirmed',
+            'Your bee box booking for Farm A has been confirmed',
+            Icons.check_circle,
+            AppTheme.availableColor,
+            '2 hours ago',
+          ),
+          const Divider(height: 1),
+          _buildActivityItem(
+            'Payment Received',
+            'Payment of ₹2,500 has been processed successfully',
+            Icons.payment,
+            AppTheme.selectedColor,
+            '1 day ago',
+          ),
+          const Divider(height: 1),
+          _buildActivityItem(
+            'Booking Reminder',
+            'Your bee box rental period ends in 3 days',
+            Icons.schedule,
+            AppTheme.warningColor,
+            '2 days ago',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivityItem(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color,
+    String time,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            time,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppTheme.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   void _navigateToBooking(BuildContext context) {
     Navigator.push(

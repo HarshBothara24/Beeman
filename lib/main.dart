@@ -6,8 +6,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:easy_localization/easy_localization.dart';
 
- import 'firebase_options.dart';
+import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
+import 'core/providers/theme_provider.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/booking/presentation/providers/booking_provider.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
@@ -17,6 +18,7 @@ import 'widgets/adaptive_layout.dart';
 import 'constants/breakpoints.dart';
 import 'utils/responsive_utils.dart';
 import 'features/auth/presentation/screens/splash_screen.dart';
+import 'features/dashboard/presentation/providers/dashboard_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +38,15 @@ void main() async {
       supportedLocales: const [Locale('en'), Locale('hi'), Locale('mr')],
       path: 'assets/translations',
       fallbackLocale: const Locale('en'),
-      child: const MyApp(),
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => DashboardProvider()),
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider(create: (_) => AuthProvider()),
+          ChangeNotifierProvider(create: (_) => BookingProvider()),
+        ],
+        child: const MyApp(),
+      ),
     ),
   );
 }
@@ -48,20 +58,28 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
       ],
-      child: Consumer2<AuthProvider, BookingProvider>(
-        builder: (context, authProvider, bookingProvider, child) {
+      child: Consumer3<ThemeProvider, AuthProvider, BookingProvider>(
+        builder: (context, themeProvider, authProvider, bookingProvider, child) {
+          // Update system brightness
+          final brightness = MediaQuery.of(context).platformBrightness;
+          themeProvider.updateSystemBrightness(brightness == Brightness.dark);
+          
           // Fetch bookings when user logs in or is present
           final user = authProvider.user;
           if (user != null) {
             bookingProvider.fetchUserBookings(user.uid);
           }
+          
           return MaterialApp(
             title: 'BeeMan',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeProvider.themeMode,
             locale: context.locale,
             supportedLocales: context.supportedLocales,
             localizationsDelegates: context.localizationDelegates,

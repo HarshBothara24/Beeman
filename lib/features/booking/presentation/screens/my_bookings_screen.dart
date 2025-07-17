@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/utils/debug_utils.dart';
 import '../../domain/models/booking_model.dart';
 import '../providers/booking_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -34,17 +33,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     });
   }
 
-  Future<void> _debugBookings() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final userId = authProvider.user?.uid;
-    if (userId != null) {
-      await DebugUtils.debugUserBookings(userId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Debug info printed to console')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -56,11 +44,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _fetchBookings,
-          ),
-          IconButton(
-            icon: const Icon(Icons.bug_report),
-            onPressed: _debugBookings,
-            tooltip: 'Debug Bookings',
           ),
         ],
       ),
@@ -86,20 +69,27 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(
-                                  Icons.calendar_today_outlined,
+                                Icon(
+                                  Icons.receipt_long_outlined,
                                   size: 64,
-                                  color: Colors.grey,
+                                  color: AppTheme.textSecondary,
                                 ),
                                 const SizedBox(height: 16),
-                                const Text(
-                                  'No bookings found',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                Text(
+                                  'No payment history found',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.textPrimary,
+                                  ),
                                 ),
                                 const SizedBox(height: 8),
-                                const Text(
-                                  'If you recently made a booking, try refreshing or check the debug info.',
-                                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                                Text(
+                                  'Your payment transactions will appear here\nMake sure you have completed bookings with payments.',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: AppTheme.textSecondary,
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 16),
@@ -112,14 +102,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                                         backgroundColor: AppTheme.primaryColor,
                                       ),
                                       child: const Text('Refresh'),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    ElevatedButton(
-                                      onPressed: _debugBookings,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.orange,
-                                      ),
-                                      child: const Text('Debug'),
                                     ),
                                   ],
                                 ),
