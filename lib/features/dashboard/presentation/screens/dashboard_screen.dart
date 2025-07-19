@@ -419,7 +419,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           mainAxisSpacing: 16,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 1.1,
+          childAspectRatio: width < 500 ? 0.85 : (width < 700 ? 1.0 : 1.1), // more height for small screens
           children: [
             EnhancedFeatureCard(
               title: _getBookingText(selectedLanguage),

@@ -214,13 +214,13 @@ class _FeatureCardState extends State<FeatureCard>
                           Text(
                             widget.subtitle,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12, // slightly reduced for better fit
                               color: widget.isEnabled
                                   ? AppTheme.textSecondary
                                   : AppTheme.textMuted,
-                              height: 1.4,
+                              height: 1.3,
                             ),
-                            maxLines: 2,
+                            maxLines: 3, // allow up to 3 lines
                             overflow: TextOverflow.ellipsis,
                           ),
                           

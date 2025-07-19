@@ -10,17 +10,18 @@ class NotificationService {
   /// Sends booking confirmation message
   static Future<bool> sendBookingConfirmation(BookingModel booking) async {
     try {
-      final response = await WhatsAppMessaging.sendBookingConfirmation(
+      final template = await fetchLatestWhatsAppTemplate();
+      final dateRange = '${DateFormat('dd MMM yyyy').format(booking.startDate)} to ${DateFormat('dd MMM yyyy').format(booking.endDate)}';
+      final message = template
+          .replaceAll('{userName}', booking.userName ?? 'User')
+          .replaceAll('{bookingId}', booking.id)
+          .replaceAll('{crop}', booking.crop)
+          .replaceAll('{status}', 'CONFIRMED')
+          .replaceAll('{dateRange}', dateRange);
+      final response = await WhatsAppMessaging.sendCustomMessage(
         phoneNumber: booking.userPhone ?? booking.phone,
-        userName: booking.userName ?? 'User',
-        numberOfBoxes: booking.numberOfBoxes,
-        crop: booking.crop,
-        startDate: DateFormat('dd MMM yyyy').format(booking.startDate),
-        endDate: DateFormat('dd MMM yyyy').format(booking.endDate),
-        totalPaid: booking.depositAmount,
-        supportContact: AppConstants.supportPhone,
+        message: message,
       );
-
       // Log the notification
       await _logNotification(
         userId: booking.userId,
@@ -30,7 +31,6 @@ class NotificationService {
         success: response.success,
         error: response.error,
       );
-
       return response.success;
     } catch (e) {
       print('Error sending booking confirmation: $e');
@@ -122,6 +122,65 @@ class NotificationService {
       return response.success;
     } catch (e) {
       print('Error sending custom message: $e');
+      return false;
+    }
+  }
+
+  /// Fetches the latest WhatsApp message template from Firestore
+  static Future<String> fetchLatestWhatsAppTemplate() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('message_templates')
+        .orderBy('updatedAt', descending: true)
+        .limit(1)
+        .get();
+    if (snapshot.docs.isNotEmpty) {
+      return snapshot.docs.first['body'] as String;
+    }
+    // Default template if none exists
+    return '''🟡 *BeeMan Booking Update*
+
+Hello {userName},
+
+Your booking *{bookingId}* for *{crop}* is currently *{status}*.
+
+📅 *Dates:* {dateRange}
+
+If you have any questions, reply to this message or contact support.''';
+  }
+
+  /// Sends a WhatsApp message using the latest template for booking status updates
+  static Future<bool> sendBookingStatusMessage({
+    required String phoneNumber,
+    required String userName,
+    required String bookingId,
+    required String crop,
+    required String status,
+    required String dateRange,
+    required String userId,
+  }) async {
+    try {
+      final template = await fetchLatestWhatsAppTemplate();
+      final message = template
+          .replaceAll('{userName}', userName)
+          .replaceAll('{bookingId}', bookingId)
+          .replaceAll('{crop}', crop)
+          .replaceAll('{status}', status)
+          .replaceAll('{dateRange}', dateRange);
+      final response = await WhatsAppMessaging.sendCustomMessage(
+        phoneNumber: phoneNumber,
+        message: message,
+      );
+      await _logNotification(
+        userId: userId,
+        bookingId: bookingId,
+        type: 'custom_message',
+        message: 'Booking status message sent',
+        success: response.success,
+        error: response.error,
+      );
+      return response.success;
+    } catch (e) {
+      print('Error sending booking status message: $e');
       return false;
     }
   }

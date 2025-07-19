@@ -172,8 +172,8 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
             child: Text(_getText('cancel')),
           ),
           TextButton(
-            onPressed: () {
-              FirebaseFirestore.instance
+            onPressed: () async {
+              await FirebaseFirestore.instance
                   .collection('bookings')
                   .doc(booking.id)
                   .update({'status': newStatus});
@@ -181,6 +181,35 @@ class _BookingManagementScreenState extends State<BookingManagementScreen> with 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text(_getText('statusUpdated'))),
               );
+              // Send WhatsApp message if status is completed
+              if (newStatus == 'completed') {
+                final userName = data['userName'] ?? 'User';
+                final userPhone = data['userPhone'] ?? '';
+                final crop = data['crop'] ?? '';
+                String formatDate(dynamic value) {
+                  if (value == null) return '';
+                  if (value is String) return value.split(' ').first;
+                  if (value is Timestamp) return value.toDate().toString().split(' ').first;
+                  return value.toString();
+                }
+                final startDate = formatDate(data['startDate']);
+                final endDate = formatDate(data['endDate']);
+                final dateRange = '$startDate to $endDate';
+                final userId = data['userId'] ?? '';
+                final bookingId = booking.id;
+                final sent = await NotificationService.sendBookingStatusMessage(
+                  phoneNumber: userPhone,
+                  userName: userName,
+                  bookingId: bookingId,
+                  crop: crop,
+                  status: 'COMPLETED',
+                  dateRange: dateRange,
+                  userId: userId,
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(sent ? 'WhatsApp message sent!' : 'Failed to send WhatsApp message.')),
+                );
+              }
             },
             child: Text(_getText('update')),
           ),

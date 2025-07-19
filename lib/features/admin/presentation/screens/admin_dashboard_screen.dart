@@ -331,17 +331,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       future: _bookingsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Row(
-            children: [
-              Expanded(child: _buildSkeletonStatCard()),
-              const SizedBox(width: 16),
-              Expanded(child: _buildSkeletonStatCard()),
-              const SizedBox(width: 16),
-              Expanded(child: _buildSkeletonStatCard()),
-              const SizedBox(width: 16),
-              Expanded(child: _buildSkeletonStatCard()),
-            ],
-          );
+          final width = MediaQuery.of(context).size.width;
+          if (width < 600) {
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: _buildSkeletonStatCard()),
+                    const SizedBox(width: 16),
+                    Expanded(child: _buildSkeletonStatCard()),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(child: _buildSkeletonStatCard()),
+                    const SizedBox(width: 16),
+                    Expanded(child: _buildSkeletonStatCard()),
+                  ],
+                ),
+              ],
+            );
+          } else {
+            return Row(
+              children: [
+                Expanded(child: _buildSkeletonStatCard()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildSkeletonStatCard()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildSkeletonStatCard()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildSkeletonStatCard()),
+              ],
+            );
+          }
         }
 
         if (snapshot.hasError) {
@@ -349,7 +372,62 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return _buildDefaultStats();
+          final width = MediaQuery.of(context).size.width;
+          if (width < 600) {
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatCard(
+                        'Total Bookings',
+                        '0',
+                        Icons.calendar_today,
+                        AppTheme.selectedColor,
+                        themeProvider,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Active',
+                        '0',
+                        Icons.hive,
+                        AppTheme.availableColor,
+                        themeProvider,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatCard(
+                        'Pending',
+                        '0',
+                        Icons.pending,
+                        AppTheme.warningColor,
+                        themeProvider,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Revenue',
+                        '₹0',
+                        Icons.currency_rupee,
+                        AppTheme.infoColor,
+                        themeProvider,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          } else {
+            return _buildDefaultStats();
+          }
         }
 
         final bookings = snapshot.data!.docs;
@@ -368,49 +446,104 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 sum +
                 ((b.data() as Map<String, dynamic>)['totalAmount'] ?? 0.0));
 
-        return Row(
-          children: [
-            Expanded(
-              child: _buildStatCard(
-                'Total Bookings',
-                totalBookings.toString(),
-                Icons.calendar_today,
-                AppTheme.selectedColor,
-                themeProvider,
+        final width = MediaQuery.of(context).size.width;
+        if (width < 600) {
+          return Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      'Total Bookings',
+                      totalBookings.toString(),
+                      Icons.calendar_today,
+                      AppTheme.selectedColor,
+                      themeProvider,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildStatCard(
+                      'Active',
+                      activeBookings.toString(),
+                      Icons.hive,
+                      AppTheme.availableColor,
+                      themeProvider,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildStatCard(
-                'Active',
-                activeBookings.toString(),
-                Icons.hive,
-                AppTheme.availableColor,
-                themeProvider,
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      'Pending',
+                      pendingBookings.toString(),
+                      Icons.pending,
+                      AppTheme.warningColor,
+                      themeProvider,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildStatCard(
+                      'Revenue',
+                      '₹${totalRevenue.toStringAsFixed(0)}',
+                      Icons.currency_rupee,
+                      AppTheme.infoColor,
+                      themeProvider,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildStatCard(
-                'Pending',
-                pendingBookings.toString(),
-                Icons.pending,
-                AppTheme.warningColor,
-                themeProvider,
+            ],
+          );
+        } else {
+          return Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Total Bookings',
+                  totalBookings.toString(),
+                  Icons.calendar_today,
+                  AppTheme.selectedColor,
+                  themeProvider,
+                ),
               ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildStatCard(
-                'Revenue',
-                '₹${totalRevenue.toStringAsFixed(0)}',
-                Icons.currency_rupee,
-                AppTheme.infoColor,
-                themeProvider,
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Active',
+                  activeBookings.toString(),
+                  Icons.hive,
+                  AppTheme.availableColor,
+                  themeProvider,
+                ),
               ),
-            ),
-          ],
-        );
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Pending',
+                  pendingBookings.toString(),
+                  Icons.pending,
+                  AppTheme.warningColor,
+                  themeProvider,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildStatCard(
+                  'Revenue',
+                  '₹${totalRevenue.toStringAsFixed(0)}',
+                  Icons.currency_rupee,
+                  AppTheme.infoColor,
+                  themeProvider,
+                ),
+              ),
+            ],
+          );
+        }
       },
     );
   }
@@ -588,7 +721,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           mainAxisSpacing: 16,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 1.1,
+          childAspectRatio: width < 500 ? 0.85 : (width < 700 ? 1.0 : 1.1), // more height for small screens
           children: [
             _buildEnhancedActionCard(
               title: 'Bee Boxes',

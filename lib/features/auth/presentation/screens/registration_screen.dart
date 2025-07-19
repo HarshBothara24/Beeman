@@ -20,23 +20,21 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController _farmerNameController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController =
-      TextEditingController(); // Added
-  final TextEditingController _locationController =
-      TextEditingController(); // Added
-  final TextEditingController _passwordController =
-      TextEditingController(); // Added
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   bool _isLoading = false;
+  bool _showPassword = false;
 
   @override
   void dispose() {
     _farmerNameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose(); // Added
-    _locationController.dispose(); // Added
-    _passwordController.dispose(); // Added
+    _phoneController.dispose();
+    _locationController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -53,7 +51,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   void _register() async {
     if (_formKey.currentState?.validate() ?? false) {
       final email = _emailController.text.trim();
-      final password = _passwordController.text; // Added
+      final password = _passwordController.text;
 
       setState(() => _isLoading = true);
 
@@ -124,17 +122,41 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Card(
-            elevation: 4,
+            elevation: 8,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(24),
             ),
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(32.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (_isLoading) const LinearProgressIndicator(),
                   const SizedBox(height: 8),
+                  // Logo/Icon
+                  CircleAvatar(
+                    radius: 32,
+                    backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                    child: Image.asset(
+                      'assets/icons/bee_box.png',
+                      width: 40,
+                      height: 40,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    "BeeMan",
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryColor,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Join our farming community",
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
@@ -152,94 +174,67 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                         foregroundColor: AppTheme.textPrimary,
                         side: const BorderSide(color: AppTheme.primaryColor),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed:
-                          _isLoading
-                              ? null
-                              : () async {
-                                print(
-                                  'Google sign-in button pressed',
-                                ); // Debug print
-                                setState(() => _isLoading = true);
-                                try {
-                                  final success =
-                                      await authProvider.signInWithGoogle();
-                                  print(
-                                    'signInWithGoogle returned: $success',
-                                  ); // Debug print
-                                  if (success && context.mounted) {
-                                    // Write user data to Firestore
-                                    final user = authProvider.user;
-                                    if (user != null) {
-                                      await FirebaseFirestore.instance
-                                          .collection('users')
-                                          .doc(user.uid)
-                                          .set({
-                                            'email': user.email,
-                                            'displayName': user.displayName,
-                                            'uid': user.uid,
-                                            'photoURL': user.photoURL,
-                                            'phone': '', // Require completion
-                                            'address': '', // Require completion
-                                            'createdAt':
-                                                FieldValue.serverTimestamp(),
-                                          }, SetOptions(merge: true));
-                                    }
-                                    // After Google sign-in, check if phone or address is missing and redirect to ProfileScreen
-                                    final userDoc =
-                                        await FirebaseFirestore.instance
-                                            .collection('users')
-                                            .doc(user!.uid)
-                                            .get();
-                                    final data = userDoc.data();
-                                    if (data == null ||
-                                        (data['phone'] == null ||
-                                            data['phone'].toString().isEmpty) ||
-                                        (data['address'] == null ||
-                                            data['address']
-                                                .toString()
-                                                .isEmpty)) {
-                                      if (context.mounted) {
-                                        Navigator.pushReplacement(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder:
-                                                (context) =>
-                                                    const ProfileScreen(),
-                                          ),
-                                        );
-                                        return;
-                                      }
-                                    }
-                                    // Navigate to dashboard
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder:
-                                            (context) =>
-                                                const DashboardScreen(),
-                                      ),
-                                    );
-                                  } else if (context.mounted) {
-                                    print(
-                                      'Google sign-in failed: ${authProvider.errorMessage}',
-                                    ); // Debug print
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          authProvider.errorMessage,
-                                        ),
-                                      ),
-                                    );
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              setState(() => _isLoading = true);
+                              try {
+                                final success = await authProvider.signInWithGoogle();
+                                if (success && context.mounted) {
+                                  final user = authProvider.user;
+                                  if (user != null) {
+                                    await FirebaseFirestore.instance
+                                        .collection('users')
+                                        .doc(user.uid)
+                                        .set({
+                                      'email': user.email,
+                                      'displayName': user.displayName,
+                                      'uid': user.uid,
+                                      'photoURL': user.photoURL,
+                                      'phone': '',
+                                      'address': '',
+                                      'createdAt': FieldValue.serverTimestamp(),
+                                    }, SetOptions(merge: true));
                                   }
-                                } finally {
-                                  if (mounted)
-                                    setState(() => _isLoading = false);
+                                  final userDoc = await FirebaseFirestore.instance
+                                      .collection('users')
+                                      .doc(user!.uid)
+                                      .get();
+                                  final data = userDoc.data();
+                                  if (data == null ||
+                                      (data['phone'] == null || data['phone'].toString().isEmpty) ||
+                                      (data['address'] == null || data['address'].toString().isEmpty)) {
+                                    if (context.mounted) {
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const ProfileScreen(),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                  }
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const DashboardScreen(),
+                                    ),
+                                  );
+                                } else if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(authProvider.errorMessage),
+                                    ),
+                                  );
                                 }
-                              },
+                              } finally {
+                                if (mounted) setState(() => _isLoading = false);
+                              }
+                            },
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -260,85 +255,85 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       children: [
                         TextFormField(
                           controller: _farmerNameController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: "Farmer's Name",
-                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.person_outline),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          validator:
-                              (value) =>
-                                  value == null || value.isEmpty
-                                      ? 'Enter farmer\'s name'
-                                      : null,
+                          validator: (value) => value == null || value.isEmpty ? 'Enter farmer\'s name' : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _usernameController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Username',
-                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.account_circle_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          validator:
-                              (value) =>
-                                  value == null || value.isEmpty
-                                      ? 'Enter username'
-                                      : null,
+                          validator: (value) => value == null || value.isEmpty ? 'Enter username' : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
-                          decoration: const InputDecoration(
-                            labelText: 'Email',
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: 'Email Address',
+                            prefixIcon: Icon(Icons.email_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          validator:
-                              (value) =>
-                                  value == null || value.isEmpty
-                                      ? 'Enter email'
-                                      : null,
+                          validator: (value) => value == null || value.isEmpty ? 'Enter email' : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _passwordController,
-                          obscureText: true,
-                          decoration: const InputDecoration(
+                          obscureText: !_showPassword,
+                          decoration: InputDecoration(
                             labelText: 'Password',
-                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(_showPassword ? Icons.visibility : Icons.visibility_off),
+                              onPressed: () => setState(() => _showPassword = !_showPassword),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          validator:
-                              (value) =>
-                                  value == null || value.isEmpty
-                                      ? 'Enter password'
-                                      : value.length < 6
-                                      ? 'Password must be at least 6 characters'
-                                      : null,
+                          validator: (value) => value == null || value.isEmpty
+                              ? 'Enter password'
+                              : value.length < 6
+                                  ? 'Password must be at least 6 characters'
+                                  : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _phoneController,
                           keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Mobile Number',
-                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.phone_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          validator:
-                              (value) =>
-                                  value == null || value.isEmpty
-                                      ? 'Enter mobile number'
-                                      : null,
+                          validator: (value) => value == null || value.isEmpty ? 'Enter mobile number' : null,
                         ),
                         const SizedBox(height: 16),
                         TextFormField(
                           controller: _locationController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Location',
-                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.location_on_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                          validator:
-                              (value) =>
-                                  value == null || value.isEmpty
-                                      ? 'Enter location'
-                                      : null,
+                          validator: (value) => value == null || value.isEmpty ? 'Enter location' : null,
                         ),
                         const SizedBox(height: 24),
                         SizedBox(
@@ -346,15 +341,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _register,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(12),
                               ),
+                              backgroundColor: _isLoading
+                                  ? AppTheme.primaryColor.withOpacity(0.5)
+                                  : AppTheme.primaryColor,
+                              foregroundColor: Colors.white,
                             ),
                             child: const Text(
-                              'Register / Login',
+                              'Create Account',
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),

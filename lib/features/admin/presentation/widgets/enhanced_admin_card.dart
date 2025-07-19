@@ -229,7 +229,7 @@ class _EnhancedAdminCardState extends State<EnhancedAdminCard>
                           Text(
                             widget.subtitle,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 12, // slightly reduced for better fit
                               color: widget.isEnabled 
                                   ? (themeProvider.isDarkMode 
                                       ? AppTheme.darkTextSecondary 
@@ -237,11 +237,11 @@ class _EnhancedAdminCardState extends State<EnhancedAdminCard>
                                   : (themeProvider.isDarkMode 
                                       ? AppTheme.darkTextMuted 
                                       : AppTheme.textMuted),
-                              height: 1.4,
+                              height: 1.3,
                               fontWeight: FontWeight.w500,
                             ),
                             textAlign: TextAlign.center,
-                            maxLines: 2,
+                            maxLines: 3, // allow up to 3 lines
                             overflow: TextOverflow.ellipsis,
                           ),
                           
